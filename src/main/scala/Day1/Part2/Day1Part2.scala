@@ -5,7 +5,7 @@ import scala.util.Using
 
 @main def Day1Part2 = {
   val (leftList, rightList) =
-    Using(Source.fromFile("src/main/scala/Day1/input.txt")) { src =>
+    Using(Source.fromFile("resources/Day1/input.txt")) { src =>
       val lists = src
         .getLines()
         .map(_.split(" {3}").map(_.toInt).toArray)
