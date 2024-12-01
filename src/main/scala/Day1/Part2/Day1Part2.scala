@@ -3,7 +3,7 @@ package Day1.Part2
 import scala.io.Source
 import scala.util.Using
 
-@main def Day1Part1 = {
+@main def Day1Part2 = {
   val (leftList, rightList) =
     Using(Source.fromFile("src/main/scala/Day1/input.txt")) { src =>
       val lists = src
