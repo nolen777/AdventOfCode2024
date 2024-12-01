@@ -1,4 +1,4 @@
-package Day1.Part1
+package Day1.Part2
 
 import scala.io.Source
 import scala.util.Using
@@ -15,9 +15,8 @@ import scala.util.Using
     }.get
 
   println(
-    leftList.sorted
-      .zip(rightList.sorted)
-      .map { case (left, right) => Math.abs(left - right) }
-      .sum
+    leftList.map { entry =>
+      entry * rightList.count(_ == entry)
+    }.sum
   )
 }
