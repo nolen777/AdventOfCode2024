@@ -2,20 +2,18 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"regexp"
 	"strconv"
 )
 
-func ReadFile(filename string) string {
-	b, err := os.ReadFile(filename)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(b)
-}
+//func ReadFile(filename string) string {
+//	b, err := os.ReadFile(filename)
+//
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	return string(b)
+//}
 
 func main() {
 	str := ReadFile("resources/Day3/input.txt")
