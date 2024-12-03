@@ -41,27 +41,29 @@ func ReadReports(filename string) [][]int {
 func isSafe(report []int) bool {
 	decreasing := report[1] < report[0]
 
-	idx := 0
-	isSuccess := true
-	for idx < (len(report)-1) && isSuccess {
+	for idx := 0; idx < (len(report) - 1); idx++ {
 		cur := report[idx]
 		next := report[idx+1]
 
 		if cur == next {
 			// can't be the same
-			isSuccess = false
-		} else if (next < cur) != decreasing {
-			// must be constantly increasing/decreasing
-			isSuccess = false
-		} else if (cur-next < -3) || (cur-next > 3) {
-			// too far apart
-			isSuccess = false
+			return false
 		}
-
-		idx += 1
+		if (next < cur) != decreasing {
+			// must be constantly increasing/decreasing
+			return false
+		}
+		if cur-next < -3 {
+			// too far apart
+			return false
+		}
+		if cur-next > 3 {
+			// too far apart
+			return false
+		}
 	}
 
-	return isSuccess
+	return true
 }
 
 func main() {
@@ -74,27 +76,22 @@ func main() {
 
 		if isSuccess {
 			fmt.Println(lineNo, " success!")
-			successCount += 1
-		} else {
-			fmt.Println(lineNo, " failure!")
-			// Try removing elements to see if it's safe now
-			foundSafe := false
+			successCount++
+			continue
+		}
 
-			idx := 0
-			for idx < len(report) && !foundSafe {
-				oneRemoved := []int{}
-				oneRemoved = append(oneRemoved, report[:idx]...)
-				oneRemoved = append(oneRemoved, report[idx+1:]...)
+		fmt.Println(lineNo, " failure!")
+		// Try removing elements to see if it's safe now
 
-				if isSafe(oneRemoved) {
-					fmt.Println("Made it safe by removing index ", idx)
-					foundSafe = true
-				}
-				idx += 1
-			}
+		for idx := 0; idx < len(report); idx++ {
+			oneRemoved := []int{}
+			oneRemoved = append(oneRemoved, report[:idx]...)
+			oneRemoved = append(oneRemoved, report[idx+1:]...)
 
-			if foundSafe {
-				successCount += 1
+			if isSafe(oneRemoved) {
+				fmt.Println("Made it safe by removing index ", idx)
+				successCount++
+				break
 			}
 		}
 	}
