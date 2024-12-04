@@ -31,6 +31,7 @@ func ReadFile(filename string) [][]rune {
 	return runes
 }
 
+// part 1
 func hasMatch(runes [][]rune, str string, i int, j int) int {
 	matchCount := 0
 	// horizontal forward
@@ -155,8 +156,41 @@ func count(runes [][]rune, str string) int {
 	return c
 }
 
+// part 2
+func hasXMatch(runes [][]rune, str string, i int, j int) int {
+	if i+2 >= len(runes) || j+2 >= len(runes[i]) {
+		return 0
+	}
+
+	if runes[i+1][j+1] != 'A' {
+		return 0
+	}
+
+	downRight := ((runes[i][j] == 'M' && runes[i+2][j+2] == 'S') ||
+		(runes[i][j] == 'S' && runes[i+2][j+2] == 'M'))
+
+	upRight := ((runes[i+2][j] == 'M' && runes[i][j+2] == 'S') ||
+		(runes[i+2][j] == 'S' && runes[i][j+2] == 'M'))
+
+	if upRight && downRight {
+		return 1
+	}
+	return 0
+}
+
+func count2(runes [][]rune, str string) int {
+	c := 0
+	for i := 0; i < len(runes); i++ {
+		for j := 0; j < len(runes[i]); j++ {
+			c += hasXMatch(runes, str, i, j)
+		}
+	}
+
+	return c
+}
+
 func main() {
 	runes := ReadFile("resources/Day4/input.txt")
 
-	fmt.Println(count(runes, "XMAS"))
+	fmt.Println(count2(runes, "MAS"))
 }
