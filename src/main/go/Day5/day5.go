@@ -76,16 +76,41 @@ func middleNumber(seq []int) int {
 	return seq[len(seq)/2]
 }
 
+func fix(rules []rule, seq []int) []int {
+	for _, rule := range rules {
+		for idx, num := range seq {
+			if num != rule.second {
+				continue
+			}
+			for laterIdx, later := range seq[idx:] {
+				if later == rule.first {
+					// Swap these two and fix again
+					newSeq := make([]int, len(seq))
+					copy(newSeq, seq)
+					newSeq[idx] = later
+					newSeq[laterIdx+idx] = num
+					return fix(rules, newSeq)
+				}
+			}
+		}
+	}
+
+	return seq
+}
+
 func main() {
-	rules, seqs := parseFile("resources/Day5/sampleinput.txt")
+	rules, seqs := parseFile("resources/Day5/input.txt")
 
 	total := 0
 	for _, seq := range seqs {
 		if satisfiesRules(rules, seq) {
 			fmt.Println("Sequence ", seq, " satisfies!")
-			mid := middleNumber(seq)
+		} else {
+			newSeq := fix(rules, seq)
+			fmt.Println("Fixed sequence is ", seq)
+			mid := middleNumber(newSeq)
 			fmt.Println("Middle number is ", mid)
-			total += middleNumber(seq)
+			total += mid
 		}
 	}
 	fmt.Println("Total is ", total)
