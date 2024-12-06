@@ -114,22 +114,26 @@ func countX(mapBytes [][]byte) int {
 	return total
 }
 
+func printState(mapBytes [][]byte) {
+	for _, line := range mapBytes {
+		for _, b := range line {
+			fmt.Print(string(b))
+		}
+		fmt.Println("")
+	}
+	fmt.Println("")
+}
+
 func main() {
-	mapBytes := parseMap("resources/Day6/sampleinput.txt")
+	mapBytes := parseMap("resources/Day6/input.txt")
 
 	mapState := setupInitial(mapBytes)
 
 	for mapState.currentRow >= 0 && mapState.currentRow < len(mapState.mapBytes) && mapState.currentColumn >= 0 && mapState.currentColumn < len(mapState.mapBytes[0]) {
 		mapState = advanceOne(mapState)
-
-		for _, line := range mapState.mapBytes {
-			for _, b := range line {
-				fmt.Print(string(b))
-			}
-			fmt.Println("")
-		}
-		fmt.Println("")
 	}
+
+	printState(mapState.mapBytes)
 
 	fmt.Println("Total ", countX(mapState.mapBytes))
 }
