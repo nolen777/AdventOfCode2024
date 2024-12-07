@@ -31,11 +31,16 @@ func parseMap(filename string) [][]byte {
 	return mapBytes
 }
 
+type Cursor struct {
+	row       int
+	column    int
+	direction int
+}
+
 type MapState struct {
-	mapBytes      [][]byte
-	currentRow    int
-	currentColumn int
-	direction     int
+	mapBytes [][]byte
+	cursor   Cursor
+	trail    []Cursor
 }
 
 func setupInitial(mapBytes [][]byte) MapState {
@@ -68,37 +73,39 @@ func setupInitial(mapBytes [][]byte) MapState {
 		fmt.Println("")
 	}
 
-	return MapState{mapBytes: mapBytes, currentRow: currentRow, currentColumn: currentColumn, direction: direction}
+	return MapState{mapBytes: mapBytes, cursor: Cursor{row: currentRow, column: currentColumn, direction: direction}}
 }
 
 func advanceOne(initial MapState) MapState {
-	newRow := initial.currentRow
-	newColumn := initial.currentColumn
-	newDirection := initial.direction
+	newCursor := initial.cursor
 	newBytes := initial.mapBytes
+	newTrail := make([]Cursor, len(initial.trail))
+	copy(newTrail, initial.trail)
 
-	switch initial.direction {
+	switch initial.cursor.direction {
 	case 0:
-		newRow -= 1
+		newCursor.row -= 1
 	case 1:
-		newColumn += 1
+		newCursor.column += 1
 	case 2:
-		newRow += 1
+		newCursor.row += 1
 	case 3:
-		newColumn -= 1
+		newCursor.column -= 1
 	}
 
-	newBytes[initial.currentRow][initial.currentColumn] = 'X'
+	newBytes[initial.cursor.row][initial.cursor.column] = 'X'
 
-	if newRow >= 0 && newColumn >= 0 && newRow < len(newBytes) && newColumn < len(newBytes[0]) {
-		if initial.mapBytes[newRow][newColumn] == '#' {
-			newDirection = (newDirection + 1) % 4
-			newRow = initial.currentRow
-			newColumn = initial.currentColumn
+	if positionIsValid(newBytes, newCursor) {
+		destByte := initial.mapBytes[newCursor.row][newCursor.column]
+		if destByte == '#' || destByte == 'O' {
+			newTrail = append(newTrail, initial.cursor)
+			newCursor.direction = (newCursor.direction + 1) % 4
+			newCursor.row = initial.cursor.row
+			newCursor.column = initial.cursor.column
 		}
 	}
 
-	return MapState{mapBytes: newBytes, currentRow: newRow, currentColumn: newColumn, direction: newDirection}
+	return MapState{mapBytes: newBytes, cursor: newCursor, trail: newTrail}
 }
 
 func countX(mapBytes [][]byte) int {
@@ -114,6 +121,10 @@ func countX(mapBytes [][]byte) int {
 	return total
 }
 
+func positionIsValid(mapBytes [][]byte, cursor Cursor) bool {
+	return cursor.row >= 0 && cursor.column >= 0 && cursor.row < len(mapBytes) && cursor.column < len(mapBytes[0])
+}
+
 func printState(mapBytes [][]byte) {
 	for _, line := range mapBytes {
 		for _, b := range line {
@@ -124,16 +135,52 @@ func printState(mapBytes [][]byte) {
 	fmt.Println("")
 }
 
+func hasLoop(mapState MapState) bool {
+	for _, oldCursor := range mapState.trail {
+		if oldCursor == mapState.cursor {
+			return true
+		}
+	}
+	return false
+}
+
+func mapBytesCopy(mapBytes [][]byte) [][]byte {
+	newBytes := [][]byte{}
+	for _, line := range mapBytes {
+		var lineCopy []byte
+		lineCopy = append(lineCopy, line...)
+		newBytes = append(newBytes, lineCopy)
+	}
+	return newBytes
+}
+
 func main() {
 	mapBytes := parseMap("resources/Day6/input.txt")
 
 	mapState := setupInitial(mapBytes)
 
-	for mapState.currentRow >= 0 && mapState.currentRow < len(mapState.mapBytes) && mapState.currentColumn >= 0 && mapState.currentColumn < len(mapState.mapBytes[0]) {
-		mapState = advanceOne(mapState)
+	loopCount := 0
+	for r := 0; r < len(mapBytes); r++ {
+		for c := 0; c < len(mapBytes[r]); c++ {
+			if r == mapState.cursor.row && c == mapState.cursor.column {
+				continue
+			}
+
+			mapCopy := mapBytesCopy(mapState.mapBytes)
+			mapCopy[r][c] = 'O'
+
+			newMapState := MapState{mapBytes: mapCopy, cursor: mapState.cursor}
+
+			for positionIsValid(newMapState.mapBytes, newMapState.cursor) {
+				newMapState = advanceOne(newMapState)
+				if hasLoop(newMapState) {
+					fmt.Println("Found a loop!")
+					loopCount++
+					break
+				}
+			}
+		}
 	}
 
-	printState(mapState.mapBytes)
-
-	fmt.Println("Total ", countX(mapState.mapBytes))
+	fmt.Println("Total ", loopCount)
 }
