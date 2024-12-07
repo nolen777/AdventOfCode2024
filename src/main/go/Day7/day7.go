@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -53,10 +54,15 @@ func possibleValues(startValue int, sequence []int) []int {
 	} else {
 		innerValues := possibleValues(sequence[l-1], sequence[:l-1])
 		for _, x := range innerValues {
+			// add
 			allValues = append(allValues, x+startValue)
+			// multiply
 			if startValue != 0 {
 				allValues = append(allValues, x*startValue)
 			}
+			// concat
+			digits := int(math.Ceil(math.Log10(float64(startValue))))
+			allValues = append(allValues, int(math.Pow10(digits))*x+startValue)
 		}
 	}
 
