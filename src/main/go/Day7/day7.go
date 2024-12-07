@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -45,28 +44,44 @@ func parse(filename string) []Equation {
 	return equations
 }
 
-func possibleValues(startValue int, sequence []int) []int {
-	allValues := []int{}
+var sumCount int
+var multCount int
+var concatCount int
 
+func isPossible(desiredValue int, sequence []int) bool {
 	l := len(sequence)
-	if l == 0 {
-		allValues = []int{startValue}
-	} else {
-		innerValues := possibleValues(sequence[l-1], sequence[:l-1])
-		for _, x := range innerValues {
-			// add
-			allValues = append(allValues, x+startValue)
-			// multiply
-			if startValue != 0 {
-				allValues = append(allValues, x*startValue)
-			}
-			// concat
-			digits := int(math.Ceil(math.Log10(float64(startValue + 1))))
-			allValues = append(allValues, int(math.Pow10(digits))*x+startValue)
-		}
-	}
+	rightmostValue := sequence[l-1]
 
-	return allValues
+	if l == 1 {
+		return desiredValue == rightmostValue
+	} else {
+		remainingSeq := sequence[:l-1]
+
+		// add
+		sumCount++
+		if isPossible(desiredValue-rightmostValue, remainingSeq) {
+			return true
+		}
+
+		// multiply. We only need to do this if the desired total is divisible by the rightmost element.
+		if desiredValue%rightmostValue == 0 {
+			multCount++
+			if isPossible(desiredValue/rightmostValue, remainingSeq) {
+				return true
+			}
+		}
+
+		// concat. We'll make sure that the rightmost digits match, and recurse if so
+		for rightmostValue > 0 {
+			if (rightmostValue % 10) != (desiredValue % 10) {
+				return false
+			}
+			rightmostValue /= 10
+			desiredValue /= 10
+		}
+		concatCount++
+		return isPossible(desiredValue, remainingSeq)
+	}
 }
 
 func main() {
@@ -74,15 +89,14 @@ func main() {
 
 	total := 0
 	for _, e := range equations {
-		pv := possibleValues(0, e.sequence)
-		for _, v := range pv {
-			if v == e.testValue {
-				fmt.Println(e, ": Success!")
-				total += e.testValue
-				break
-			}
+		if isPossible(e.testValue, e.sequence) {
+			fmt.Println(e, ": Success!")
+			total += e.testValue
 		}
 	}
 
-	fmt.Println("total: ", total)
+	fmt.Println("new total:", total)
+	fmt.Println("Sum count:    ", sumCount)
+	fmt.Println("Mult count:   ", multCount)
+	fmt.Println("Concat count: ", concatCount)
 }
