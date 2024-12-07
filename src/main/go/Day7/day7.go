@@ -61,7 +61,7 @@ func possibleValues(startValue int, sequence []int) []int {
 				allValues = append(allValues, x*startValue)
 			}
 			// concat
-			digits := int(math.Ceil(math.Log10(float64(startValue))))
+			digits := int(math.Ceil(math.Log10(float64(startValue + 1))))
 			allValues = append(allValues, int(math.Pow10(digits))*x+startValue)
 		}
 	}
@@ -70,7 +70,7 @@ func possibleValues(startValue int, sequence []int) []int {
 }
 
 func main() {
-	equations := parse("resources/Day7/sampleinput.txt")
+	equations := parse("resources/Day7/input.txt")
 
 	total := 0
 	for _, e := range equations {
