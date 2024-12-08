@@ -54,14 +54,15 @@ func findAntinodes(frequencyMap FrequencyMap) map[[2]int]bool {
 				rowDiff := loc2[0] - loc1[0]
 				colDiff := loc2[1] - loc1[1]
 
-				pos1 := [2]int{loc2[0] + rowDiff, loc2[1] + colDiff}
-				pos2 := [2]int{loc1[0] - rowDiff, loc1[1] - colDiff}
-
-				if isValid(frequencyMap, pos1) {
+				for pos1 := loc1; isValid(frequencyMap, pos1); {
 					antinodes[pos1] = true
+					pos1[0] -= rowDiff
+					pos1[1] -= colDiff
 				}
-				if isValid(frequencyMap, pos2) {
+				for pos2 := loc2; isValid(frequencyMap, pos2); {
 					antinodes[pos2] = true
+					pos2[0] += rowDiff
+					pos2[1] += colDiff
 				}
 			}
 		}
