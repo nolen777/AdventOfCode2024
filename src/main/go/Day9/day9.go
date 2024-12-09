@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -36,25 +37,25 @@ func parseFile(fileName string) []int {
 	return []int{}
 }
 
-func makeDiskBlocks(format []int) ([]int, []emptyBlockPosition) {
-	blocks := []int{}
+func makeDiskBlocks(format []int) ([]filePosition, []emptyBlockPosition) {
+	filePositions := []filePosition{}
 	emptyBlockPositions := []emptyBlockPosition{}
+	currentPosition := 0
 
 	for idx, n := range format {
 		var v int
 		if idx%2 == 0 {
 			v = idx / 2
+			filePositions = append(filePositions, filePosition{fileId: v, startIndex: currentPosition, length: n})
 		} else {
 			v = -1 // represents empty
-			emptyBlockPositions = append(emptyBlockPositions, emptyBlockPosition{startIndex: len(blocks), length: n})
+			emptyBlockPositions = append(emptyBlockPositions, emptyBlockPosition{startIndex: currentPosition, length: n})
 		}
 
-		for i := 0; i < n; i++ {
-			blocks = append(blocks, v)
-		}
+		currentPosition += n
 	}
 
-	return blocks, emptyBlockPositions
+	return filePositions, emptyBlockPositions
 }
 
 func printBlocks(blocks []int) {
@@ -95,66 +96,107 @@ func checksum(blocks []int) int {
 	return sum
 }
 
+type filePosition struct {
+	fileId     int
+	startIndex int
+	length     int
+}
+
 type emptyBlockPosition struct {
 	startIndex int
 	length     int
 }
 
-func shiftOneFile(blocks []int, emptyBlockPositions []emptyBlockPosition, currentFileId int) {
-	totalBlockCount := len(blocks)
+func shiftOneFile(files []filePosition, emptyBlocks []emptyBlockPosition, filteredEmpties []emptyBlockPosition) []emptyBlockPosition {
+	if len(files) == 0 {
+		return filteredEmpties
+	}
 
-	startIndex := 0
-	fileCount := 0
-	// How long a contiguous block do we need?
-	for idx, n := range blocks {
-		if n == currentFileId {
-			startIndex = idx
-			fileCount = 0
+	nextFilteredEmpty := []emptyBlockPosition{}
+	lastEntry := files[len(files)-1]
 
-			for fileCount+idx < totalBlockCount && blocks[idx+fileCount] == n {
-				fileCount++
-			}
+	var newLastEntry filePosition
+
+	// the nonfiltered list
+	for idx, emptyBlock := range emptyBlocks {
+		if emptyBlock.length >= lastEntry.length {
+			newLastEntry = lastEntry
+			newLastEntry.startIndex = emptyBlock.startIndex
+			files[len(files)-1] = newLastEntry
+			emptyBlock.length -= lastEntry.length
+			emptyBlock.startIndex += lastEntry.length
+
+			emptyBlocks[idx] = emptyBlock
+
 			break
 		}
 	}
 
-	// Find a block that size
-	for idx, n := range emptyBlockPositions[:startIndex] {
-		if n == -1 {
-			emptyCount := 0
+	// the filtered list
+	for idx, nonzeroEmptyBlock := range filteredEmpties {
+		if nonzeroEmptyBlock.length >= lastEntry.length {
+			lastEntry.startIndex = nonzeroEmptyBlock.startIndex
 
-			for emptyCount+idx < startIndex && blocks[idx+emptyCount] == -1 {
-				emptyCount++
-
-				if emptyCount >= fileCount {
-					// We can move
-					for i := idx; i < idx+fileCount; i++ {
-						blocks[i] = currentFileId
-					}
-					for i := startIndex; i < startIndex+fileCount; i++ {
-						blocks[i] = -1
-					}
-
-					return
-				}
+			if lastEntry != newLastEntry {
+				fmt.Println("Found a discrepancy! ", idx)
 			}
+			//files[len(files)-1] = lastEntry
+			nonzeroEmptyBlock.length -= lastEntry.length
+			nonzeroEmptyBlock.startIndex += lastEntry.length
+
+			if nonzeroEmptyBlock.length == 0 {
+				nextFilteredEmpty = append(nextFilteredEmpty, filteredEmpties[:idx]...)
+				nextFilteredEmpty = append(nextFilteredEmpty, filteredEmpties[idx+1:]...)
+			} else {
+				filteredEmpties[idx] = nonzeroEmptyBlock
+				nextFilteredEmpty = filteredEmpties
+			}
+			break
 		}
 	}
+	return shiftOneFile(files[:len(files)-1], emptyBlocks, nextFilteredEmpty)
+}
+
+func newChecksum(filePositions []filePosition) int {
+	sum := 0
+
+	for _, fPos := range filePositions {
+		for i := 0; i < fPos.length; i++ {
+			sum += fPos.fileId * (i + fPos.startIndex)
+		}
+	}
+	return sum
 }
 
 func main() {
 	inputLine := parseFile("resources/Day9/input.txt")
-	fmt.Println(inputLine)
+	//fmt.Println(inputLine)
 
-	blocks, emptyBlockPositions := makeDiskBlocks(inputLine)
-	printBlocks(blocks)
+	filePositions, emptyBlockPositions := makeDiskBlocks(inputLine)
+	//printBlocks(blocks)
+	//fmt.Println(filePositions)
+	//fmt.Println(emptyBlockPositions)
+	//fmt.Println("")
+
+	filteredEmpties := make([]emptyBlockPosition, 0, len(emptyBlockPositions))
+	filteredEmpties = append(filteredEmpties, emptyBlockPositions...)
+
+	emptyBlockPositions = shiftOneFile(filePositions, emptyBlockPositions, filteredEmpties)
+	sort.Slice(filePositions, func(i int, j int) bool {
+		return filePositions[i].startIndex < filePositions[j].startIndex
+	})
+	sort.Slice(emptyBlockPositions, func(i int, j int) bool {
+		return emptyBlockPositions[i].startIndex < emptyBlockPositions[j].startIndex
+	})
+	fmt.Println(filePositions)
 	fmt.Println(emptyBlockPositions)
-
+	//fmt.Println(emptyBlockPositions)
+	fmt.Println("new sum: ", newChecksum(filePositions))
 	//for fileId := len(blocks) - 1; fileId >= 0; fileId-- {
 	//	shiftOneFile(blocks, fileId)
 	//	printBlocks(blocks)
 	//}
 	//compress(blocks)
 	//printBlocks(blocks)
-	fmt.Println("sum: ", checksum(blocks))
+	//fmt.Println("sum: ", checksum(blocks))
 }
