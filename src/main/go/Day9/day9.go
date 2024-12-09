@@ -100,7 +100,7 @@ type emptyBlockPosition struct {
 	length     int
 }
 
-func shiftOneFile(blocks []int, emptyBlockPositions []emptyBlockPosition, currentFileId int) {
+func shiftOneFile(blocks []int, currentFileId int) {
 	totalBlockCount := len(blocks)
 
 	startIndex := 0
@@ -119,7 +119,7 @@ func shiftOneFile(blocks []int, emptyBlockPositions []emptyBlockPosition, curren
 	}
 
 	// Find a block that size
-	for idx, n := range emptyBlockPositions[:startIndex] {
+	for idx, n := range blocks[:startIndex] {
 		if n == -1 {
 			emptyCount := 0
 
@@ -150,10 +150,10 @@ func main() {
 	printBlocks(blocks)
 	fmt.Println(emptyBlockPositions)
 
-	//for fileId := len(blocks) - 1; fileId >= 0; fileId-- {
-	//	shiftOneFile(blocks, fileId)
-	//	printBlocks(blocks)
-	//}
+	for fileId := len(blocks) - 1; fileId >= 0; fileId-- {
+		shiftOneFile(blocks, fileId)
+		//printBlocks(blocks)
+	}
 	//compress(blocks)
 	//printBlocks(blocks)
 	fmt.Println("sum: ", checksum(blocks))
