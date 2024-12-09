@@ -36,8 +36,9 @@ func parseFile(fileName string) []int {
 	return []int{}
 }
 
-func makeDiskBlocks(format []int) []int {
+func makeDiskBlocks(format []int) ([]int, []emptyBlockPosition) {
 	blocks := []int{}
+	emptyBlockPositions := []emptyBlockPosition{}
 
 	for idx, n := range format {
 		var v int
@@ -45,6 +46,7 @@ func makeDiskBlocks(format []int) []int {
 			v = idx / 2
 		} else {
 			v = -1 // represents empty
+			emptyBlockPositions = append(emptyBlockPositions, emptyBlockPosition{startIndex: len(blocks), length: n})
 		}
 
 		for i := 0; i < n; i++ {
@@ -52,7 +54,7 @@ func makeDiskBlocks(format []int) []int {
 		}
 	}
 
-	return blocks
+	return blocks, emptyBlockPositions
 }
 
 func printBlocks(blocks []int) {
@@ -86,21 +88,73 @@ func checksum(blocks []int) int {
 	sum := 0
 	for idx, n := range blocks {
 		if n == -1 {
-			break
+			continue
 		}
 		sum += idx * n
 	}
 	return sum
 }
 
+type emptyBlockPosition struct {
+	startIndex int
+	length     int
+}
+
+func shiftOneFile(blocks []int, emptyBlockPositions []emptyBlockPosition, currentFileId int) {
+	totalBlockCount := len(blocks)
+
+	startIndex := 0
+	fileCount := 0
+	// How long a contiguous block do we need?
+	for idx, n := range blocks {
+		if n == currentFileId {
+			startIndex = idx
+			fileCount = 0
+
+			for fileCount+idx < totalBlockCount && blocks[idx+fileCount] == n {
+				fileCount++
+			}
+			break
+		}
+	}
+
+	// Find a block that size
+	for idx, n := range emptyBlockPositions[:startIndex] {
+		if n == -1 {
+			emptyCount := 0
+
+			for emptyCount+idx < startIndex && blocks[idx+emptyCount] == -1 {
+				emptyCount++
+
+				if emptyCount >= fileCount {
+					// We can move
+					for i := idx; i < idx+fileCount; i++ {
+						blocks[i] = currentFileId
+					}
+					for i := startIndex; i < startIndex+fileCount; i++ {
+						blocks[i] = -1
+					}
+
+					return
+				}
+			}
+		}
+	}
+}
+
 func main() {
-	inputLine := parseFile("resources/Day9/sampleinput.txt")
+	inputLine := parseFile("resources/Day9/input.txt")
 	fmt.Println(inputLine)
 
-	blocks := makeDiskBlocks(inputLine)
+	blocks, emptyBlockPositions := makeDiskBlocks(inputLine)
 	printBlocks(blocks)
+	fmt.Println(emptyBlockPositions)
 
-	compress(blocks)
-	printBlocks(blocks)
+	//for fileId := len(blocks) - 1; fileId >= 0; fileId-- {
+	//	shiftOneFile(blocks, fileId)
+	//	printBlocks(blocks)
+	//}
+	//compress(blocks)
+	//printBlocks(blocks)
 	fmt.Println("sum: ", checksum(blocks))
 }
