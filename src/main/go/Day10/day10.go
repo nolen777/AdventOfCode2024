@@ -37,34 +37,58 @@ func parseTopoMap(fileName string) [][]int {
 	return topoMap
 }
 
-func makeReachableMap(topoMap [][]int, thRow int, thColumn int) [][]bool {
+func adjacents(topoMap [][]int, c coords) []coords {
+	adj := make([]coords, 0, 4)
+
+	if c.row > 0 {
+		adj = append(adj, coords{row: c.row - 1, column: c.column})
+	}
+	if c.column > 0 {
+		adj = append(adj, coords{row: c.row, column: c.column - 1})
+	}
+	if c.row < len(topoMap)-1 {
+		adj = append(adj, coords{row: c.row + 1, column: c.column})
+	}
+	if c.column < len(topoMap[c.row])-1 {
+		adj = append(adj, coords{row: c.row, column: c.column + 1})
+	}
+
+	return adj
+}
+
+func gentleUpAdjacents(topoMap [][]int, c coords) []coords {
+	value := topoMap[c.row][c.column]
+	allAdj := adjacents(topoMap, c)
+	upAdj := make([]coords, 0, len(allAdj))
+
+	for _, a := range allAdj {
+		if topoMap[a.row][a.column]-value == 1 {
+			upAdj = append(upAdj, a)
+		}
+	}
+
+	return upAdj
+}
+
+func makeReachableMap(topoMap [][]int, thCoords coords) [][]bool {
 	reachableMap := make([][]bool, 0, len(topoMap))
 	for i := 0; i < len(topoMap); i++ {
 		reachableMap = append(reachableMap, make([]bool, len(topoMap[i])))
 	}
 
-	var setReachable func(row int, column int)
-	setReachable = func(row int, column int) {
-		if reachableMap[row][column] {
+	var setReachable func(c coords)
+	setReachable = func(c coords) {
+		if reachableMap[c.row][c.column] {
 			return
 		}
-		reachableMap[row][column] = true
-		value := topoMap[row][column]
-		if row > 0 && topoMap[row-1][column]-value == 1 {
-			setReachable(row-1, column)
-		}
-		if column > 0 && topoMap[row][column-1]-value == 1 {
-			setReachable(row, column-1)
-		}
-		if row < len(topoMap)-1 && topoMap[row+1][column]-value == 1 {
-			setReachable(row+1, column)
-		}
-		if column < len(topoMap[row])-1 && topoMap[row][column+1]-value == 1 {
-			setReachable(row, column+1)
+		reachableMap[c.row][c.column] = true
+
+		for _, a := range gentleUpAdjacents(topoMap, c) {
+			setReachable(a)
 		}
 	}
 
-	setReachable(thRow, thColumn)
+	setReachable(thCoords)
 	return reachableMap
 }
 
@@ -102,7 +126,7 @@ type coords struct {
 }
 
 func main() {
-	topoMap := parseTopoMap("resources/Day10/sampleinput.txt")
+	topoMap := parseTopoMap("resources/Day10/input.txt")
 	fmt.Println(topoMap)
 
 	trailheads := []coords{}
@@ -119,10 +143,12 @@ func main() {
 		}
 	}
 
-	// part 1
+	fmt.Println("***        ***")
+	fmt.Println("*** PART 1 ***")
+	fmt.Println("***        ***")
 	totalScore := 0
 	for _, th := range trailheads {
-		reachable := makeReachableMap(topoMap, th.row, th.column)
+		reachable := makeReachableMap(topoMap, th)
 
 		score := 0
 		for _, p := range peaks {
@@ -134,13 +160,16 @@ func main() {
 		totalScore += score
 	}
 
-	fmt.Println(totalScore)
+	fmt.Println("Total score: ", totalScore)
+	fmt.Println("\n\n")
 
+	fmt.Println("***        ***")
+	fmt.Println("*** PART 2 ***")
+	fmt.Println("***        ***")
 	totalRating := 0
 	// part 2
 	for _, th := range trailheads {
 		trailCount := makeTrailCountFrom(topoMap, th.row, th.column)
-		fmt.Println(trailCount)
 
 		rating := 0
 		for _, p := range peaks {
