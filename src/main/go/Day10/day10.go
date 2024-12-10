@@ -68,6 +68,34 @@ func makeReachableMap(topoMap [][]int, thRow int, thColumn int) [][]bool {
 	return reachableMap
 }
 
+func makeTrailCountFrom(topoMap [][]int, trailheadRow int, trailheadColumn int) [][]int {
+	trailCountMap := make([][]int, 0, len(topoMap))
+	for i := 0; i < len(topoMap); i++ {
+		trailCountMap = append(trailCountMap, make([]int, len(topoMap[i])))
+	}
+
+	var incrementTrailCount func(row int, column int)
+	incrementTrailCount = func(row int, column int) {
+		trailCountMap[row][column] += 1
+		value := topoMap[row][column]
+		if row > 0 && topoMap[row-1][column]-value == 1 {
+			incrementTrailCount(row-1, column)
+		}
+		if column > 0 && topoMap[row][column-1]-value == 1 {
+			incrementTrailCount(row, column-1)
+		}
+		if row < len(topoMap)-1 && topoMap[row+1][column]-value == 1 {
+			incrementTrailCount(row+1, column)
+		}
+		if column < len(topoMap[row])-1 && topoMap[row][column+1]-value == 1 {
+			incrementTrailCount(row, column+1)
+		}
+	}
+
+	incrementTrailCount(trailheadRow, trailheadColumn)
+	return trailCountMap
+}
+
 type coords struct {
 	row    int
 	column int
@@ -91,6 +119,7 @@ func main() {
 		}
 	}
 
+	// part 1
 	totalScore := 0
 	for _, th := range trailheads {
 		reachable := makeReachableMap(topoMap, th.row, th.column)
@@ -107,14 +136,18 @@ func main() {
 
 	fmt.Println(totalScore)
 
-	//for r, row := range topoMap {
-	//	for c, height := range row {
-	//		if height == 0 {
-	//			reachable := makeReachableMap(topoMap, r, c)
-	//			fmt.Println("(", r, ",", c, "):")
-	//
-	//			fmt.Println(reachable)
-	//		}
-	//	}
-	//}
+	totalRating := 0
+	// part 2
+	for _, th := range trailheads {
+		trailCount := makeTrailCountFrom(topoMap, th.row, th.column)
+		fmt.Println(trailCount)
+
+		rating := 0
+		for _, p := range peaks {
+			rating += trailCount[p.row][p.column]
+		}
+		fmt.Println("(", th.row, ",", th.column, "): ", rating)
+		totalRating += rating
+	}
+	fmt.Println("total rating: ", totalRating)
 }
