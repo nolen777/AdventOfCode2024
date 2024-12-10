@@ -92,31 +92,22 @@ func makeReachableMap(topoMap [][]int, thCoords coords) [][]bool {
 	return reachableMap
 }
 
-func makeTrailCountFrom(topoMap [][]int, trailheadRow int, trailheadColumn int) [][]int {
+func makeTrailCountFrom(topoMap [][]int, trailhead coords) [][]int {
 	trailCountMap := make([][]int, 0, len(topoMap))
 	for i := 0; i < len(topoMap); i++ {
 		trailCountMap = append(trailCountMap, make([]int, len(topoMap[i])))
 	}
 
-	var incrementTrailCount func(row int, column int)
-	incrementTrailCount = func(row int, column int) {
-		trailCountMap[row][column] += 1
-		value := topoMap[row][column]
-		if row > 0 && topoMap[row-1][column]-value == 1 {
-			incrementTrailCount(row-1, column)
-		}
-		if column > 0 && topoMap[row][column-1]-value == 1 {
-			incrementTrailCount(row, column-1)
-		}
-		if row < len(topoMap)-1 && topoMap[row+1][column]-value == 1 {
-			incrementTrailCount(row+1, column)
-		}
-		if column < len(topoMap[row])-1 && topoMap[row][column+1]-value == 1 {
-			incrementTrailCount(row, column+1)
+	var incrementTrailCount func(c coords)
+	incrementTrailCount = func(c coords) {
+		trailCountMap[c.row][c.column] += 1
+
+		for _, a := range gentleUpAdjacents(topoMap, c) {
+			incrementTrailCount(a)
 		}
 	}
 
-	incrementTrailCount(trailheadRow, trailheadColumn)
+	incrementTrailCount(trailhead)
 	return trailCountMap
 }
 
@@ -169,7 +160,7 @@ func main() {
 	totalRating := 0
 	// part 2
 	for _, th := range trailheads {
-		trailCount := makeTrailCountFrom(topoMap, th.row, th.column)
+		trailCount := makeTrailCountFrom(topoMap, th)
 
 		rating := 0
 		for _, p := range peaks {
