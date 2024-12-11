@@ -137,15 +137,15 @@ func main() {
 	initialNums := parseNums("resources/Day11/input.txt")
 	printStones(initialNums)
 
-	stones := make([]StoneInfo, 0, len(initialNums))
+	stones := consolidate(make([]StoneInfo, 0, len(initialNums)))
 	for _, num := range initialNums {
 		stones = append(stones, StoneInfo{value: num, count: 1})
 	}
 	stones = consolidate(stones)
 
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 75; i++ {
 		stones = consolidate(blink(stones))
-		fmt.Println(i)
+		fmt.Println(i, " unique count: ", len(stones))
 		//	fmt.Println(stones)
 	}
 
