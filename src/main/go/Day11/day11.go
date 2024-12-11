@@ -92,7 +92,7 @@ func blink(stones []StoneInfo) []StoneInfo {
 			// split
 			first, second := split(e.value, dc)
 			stones[idx].value = first
-			stones = append(stones, StoneInfo{value: second, count: 1})
+			stones = append(stones, StoneInfo{value: second, count: stones[idx].count})
 
 		default:
 			stones[idx].value = e.value * 2024
@@ -111,19 +111,26 @@ func consolidate(stones []StoneInfo) []StoneInfo {
 	})
 
 	idx := 0
-	csIdx := 0
-	curValue := -1
+	csLen := 0
 	for idx < len(stones) {
 		newInfo := stones[idx]
-		if newInfo.value != curValue {
+		if csLen == 0 || newInfo.value != cS[csLen-1].value {
 			cS = append(cS, newInfo)
-			csIdx++
+			csLen++
 		} else {
-			cS[csIdx].value += newInfo.count
+			cS[csLen-1].count += newInfo.count
 		}
 		idx++
 	}
 	return cS
+}
+
+func countStones(stones []StoneInfo) int {
+	totalCount := 0
+	for _, stone := range stones {
+		totalCount += stone.count
+	}
+	return totalCount
 }
 
 func main() {
@@ -142,5 +149,5 @@ func main() {
 		//	fmt.Println(stones)
 	}
 
-	fmt.Println(len(stones), " stones")
+	fmt.Println(countStones(stones), " stones")
 }
