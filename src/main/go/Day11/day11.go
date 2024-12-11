@@ -86,36 +86,6 @@ func split(n int, digitCount int) (int, int) {
 	return n, m
 }
 
-//func blink(stones []int) []int {
-//	idx := 0
-//
-//	for idx < len(stones) {
-//		e := stones[idx]
-//		dc := digitCount(e)
-//
-//		switch {
-//		case e == 0:
-//			stones[idx] = 1
-//		case dc%2 == 0:
-//			// split
-//			newStones := make([]int, 0, len(stones)+dc/2)
-//			newStones = append(newStones, stones[:idx]...)
-//			first, second := split(e, dc)
-//			newStones = append(newStones, first, second)
-//			newStones = append(newStones, stones[idx+1:]...)
-//
-//			stones = newStones
-//			idx++
-//
-//		default:
-//			stones[idx] = e * 2024
-//		}
-//		idx++
-//	}
-//
-//	return stones
-//}
-
 func blink(head *Node) *Node {
 	idx := 0
 
@@ -154,16 +124,33 @@ func count(head *Node) int {
 	return c
 }
 
+func calcSingle(num int) []int {
+	results := make([]int, 0, 75)
+
+	stones := new(Node)
+	stones.value = num
+
+	for i := 0; i < 25; i++ {
+		stones = blink(stones)
+		results = append(results, count(stones))
+		printStones(stones)
+	}
+	return results
+}
+
 func main() {
 	stones := parseNums("resources/Day11/input.txt")
 
 	printStones(stones)
 
-	for i := 0; i < 25; i++ {
-		stones = blink(stones)
-		fmt.Println(i)
-		//	fmt.Println(stones)
-	}
+	zeroes := calcSingle(0)
+	fmt.Println(zeroes)
 
-	fmt.Println(count(stones), " stones")
+	//for i := 0; i < 75; i++ {
+	//	stones = blink(stones)
+	//	fmt.Println(i)
+	//	//	fmt.Println(stones)
+	//}
+	//
+	//fmt.Println(count(stones), " stones")
 }
