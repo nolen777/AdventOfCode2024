@@ -47,19 +47,28 @@ func printStones(stones []int) {
 }
 
 func digitCount(n int) int {
-	return len(strconv.Itoa(n))
-}
-
-func split(n int) (int, int) {
-	str := strconv.Itoa(n)
-	first, err := strconv.Atoi(str[:len(str)/2])
-	second, err := strconv.Atoi(str[len(str)/2:])
-
-	if err != nil {
-		log.Fatal("Bad atoi")
+	if n == 0 {
+		return 1
 	}
 
-	return first, second
+	count := 0
+	for n != 0 {
+		n /= 10
+		count++
+	}
+	return count
+}
+
+func split(n int, digitCount int) (int, int) {
+	m := 0
+	mult := 1
+	for i := 0; i < digitCount/2; i++ {
+		d := n % 10
+		m += d * mult
+		n /= 10
+		mult *= 10
+	}
+	return n, m
 }
 
 func blink(stones []int) []int {
@@ -67,15 +76,16 @@ func blink(stones []int) []int {
 
 	for idx < len(stones) {
 		e := stones[idx]
+		dc := digitCount(e)
 
 		switch {
 		case e == 0:
 			stones[idx] = 1
-		case digitCount(e)%2 == 0:
+		case dc%2 == 0:
 			// split
-			newStones := make([]int, 0, len(stones)+digitCount(e)/2)
+			newStones := make([]int, 0, len(stones)+dc/2)
 			newStones = append(newStones, stones[:idx]...)
-			first, second := split(e)
+			first, second := split(e, dc)
 			newStones = append(newStones, first, second)
 			newStones = append(newStones, stones[idx+1:]...)
 
@@ -92,12 +102,14 @@ func blink(stones []int) []int {
 }
 
 func main() {
-	stones := parseNums("resources/Day11/sampleinput.txt")
+	stones := parseNums("resources/Day11/input.txt")
 
 	printStones(stones)
 
 	for i := 0; i < 25; i++ {
 		stones = blink(stones)
+		fmt.Println(i)
+		//	fmt.Println(stones)
 	}
 
 	fmt.Println(len(stones), " stones")
