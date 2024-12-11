@@ -73,8 +73,9 @@ func split(n int, digitCount int) (int, int) {
 
 func blink(stones []int) []int {
 	idx := 0
+	startLen := len(stones)
 
-	for idx < len(stones) {
+	for idx < startLen {
 		e := stones[idx]
 		dc := digitCount(e)
 
@@ -83,14 +84,9 @@ func blink(stones []int) []int {
 			stones[idx] = 1
 		case dc%2 == 0:
 			// split
-			newStones := make([]int, 0, len(stones)+dc/2)
-			newStones = append(newStones, stones[:idx]...)
 			first, second := split(e, dc)
-			newStones = append(newStones, first, second)
-			newStones = append(newStones, stones[idx+1:]...)
-
-			stones = newStones
-			idx++
+			stones[idx] = first
+			stones = append(stones, second)
 
 		default:
 			stones[idx] = e * 2024
@@ -106,7 +102,7 @@ func main() {
 
 	printStones(stones)
 
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 75; i++ {
 		stones = blink(stones)
 		fmt.Println(i)
 		//	fmt.Println(stones)
