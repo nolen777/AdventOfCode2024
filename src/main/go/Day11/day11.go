@@ -9,12 +9,7 @@ import (
 	"strings"
 )
 
-type Node struct {
-	value int
-	next  *Node
-}
-
-func parseNums(fileName string) *Node {
+func parseNums(fileName string) []int {
 	file, err := os.Open(fileName)
 
 	if err != nil {
@@ -22,8 +17,7 @@ func parseNums(fileName string) *Node {
 	}
 	defer file.Close()
 
-	var head *Node
-	var tail *Node
+	nums := []int{}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -36,27 +30,18 @@ func parseNums(fileName string) *Node {
 
 			if err != nil {
 				fmt.Println(err)
-				return head
+				return nums
 			}
-
-			newNode := new(Node)
-			newNode.value = num
-			if head == nil {
-				head = newNode
-			}
-			if tail != nil {
-				tail.next = newNode
-			}
-			tail = newNode
+			nums = append(nums, num)
 		}
 		break
 	}
-	return head
+	return nums
 }
 
-func printStones(head *Node) {
-	for iter := head; iter != nil; iter = iter.next {
-		fmt.Print(iter.value, " ")
+func printStones(stones []int) {
+	for _, e := range stones {
+		fmt.Print(e, " ")
 	}
 	fmt.Println("")
 }
@@ -86,72 +71,34 @@ func split(n int, digitCount int) (int, int) {
 	return n, m
 }
 
-//func blink(stones []int) []int {
-//	idx := 0
-//
-//	for idx < len(stones) {
-//		e := stones[idx]
-//		dc := digitCount(e)
-//
-//		switch {
-//		case e == 0:
-//			stones[idx] = 1
-//		case dc%2 == 0:
-//			// split
-//			newStones := make([]int, 0, len(stones)+dc/2)
-//			newStones = append(newStones, stones[:idx]...)
-//			first, second := split(e, dc)
-//			newStones = append(newStones, first, second)
-//			newStones = append(newStones, stones[idx+1:]...)
-//
-//			stones = newStones
-//			idx++
-//
-//		default:
-//			stones[idx] = e * 2024
-//		}
-//		idx++
-//	}
-//
-//	return stones
-//}
-
-func blink(head *Node) *Node {
+func blink(stones []int) []int {
 	idx := 0
 
-	for iter := head; iter != nil; iter = iter.next {
-		e := iter.value
+	for idx < len(stones) {
+		e := stones[idx]
 		dc := digitCount(e)
 
 		switch {
 		case e == 0:
-			iter.value = 1
+			stones[idx] = 1
 		case dc%2 == 0:
 			// split
+			newStones := make([]int, 0, len(stones)+dc/2)
+			newStones = append(newStones, stones[:idx]...)
 			first, second := split(e, dc)
-			newNode := new(Node)
-			newNode.value = second
-			newNode.next = iter.next
-			iter.value = first
-			iter.next = newNode
+			newStones = append(newStones, first, second)
+			newStones = append(newStones, stones[idx+1:]...)
 
-			iter = newNode
+			stones = newStones
+			idx++
 
 		default:
-			iter.value = e * 2024
+			stones[idx] = e * 2024
 		}
 		idx++
 	}
 
-	return head
-}
-
-func count(head *Node) int {
-	c := 0
-	for iter := head; iter != nil; iter = iter.next {
-		c++
-	}
-	return c
+	return stones
 }
 
 func main() {
@@ -165,5 +112,5 @@ func main() {
 		//	fmt.Println(stones)
 	}
 
-	fmt.Println(count(stones), " stones")
+	fmt.Println(len(stones), " stones")
 }
