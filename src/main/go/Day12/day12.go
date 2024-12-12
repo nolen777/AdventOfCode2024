@@ -144,10 +144,16 @@ func calculateValues(plots [][]Plot) []int {
 }
 
 func main() {
-	grid := parseBytes("resources/Day12/sampleinput.txt")
+	grid := parseBytes("resources/Day12/input.txt")
 	plots := makePlots(grid)
 	findRegions(plots)
 	values := calculateValues(plots)
 
 	fmt.Println(values)
+
+	totalPrice := 0
+	for _, value := range values {
+		totalPrice += value
+	}
+	fmt.Println("Total price: ", totalPrice)
 }
