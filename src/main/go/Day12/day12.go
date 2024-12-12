@@ -157,8 +157,56 @@ func calculateValues(plots [][]Plot) []int {
 	return values
 }
 
+func calculateBulkValues(plots [][]Plot) []int {
+	values := []int{}
+
+	regionId := 1
+
+	for {
+		regionArea := 0
+		regionSides := 0
+		for i, row := range plots {
+			for j, plot := range row {
+				if plot.regionId == regionId {
+					regionArea++
+					perim := perimeterValues(plots, Coords{r: i, c: j})
+					value := plot.value
+
+					if perim[0] == 1 {
+						if j == 0 || plots[i][j-1].value != value || perimeterValues(plots, Coords{r: i, c: j - 1})[0] == 0 {
+							regionSides++
+						}
+					}
+					if perim[1] == 1 {
+						if i == 0 || plots[i-1][j].value != value || perimeterValues(plots, Coords{r: i - 1, c: j})[1] == 0 {
+							regionSides++
+						}
+					}
+					if perim[2] == 1 {
+						if j == 0 || plots[i][j-1].value != value || perimeterValues(plots, Coords{r: i, c: j - 1})[2] == 0 {
+							regionSides++
+						}
+					}
+					if perim[3] == 1 {
+						if i == 0 || plots[i-1][j].value != value || perimeterValues(plots, Coords{r: i - 1, c: j})[3] == 0 {
+							regionSides++
+						}
+					}
+				}
+			}
+		}
+		if regionArea == 0 {
+			break
+		}
+		values = append(values, regionArea*regionSides)
+		regionId++
+	}
+
+	return values
+}
+
 func main() {
-	grid := parseBytes("resources/Day12/input.txt")
+	grid := parseBytes("resources/Day12/sampleinput.txt")
 	plots := makePlots(grid)
 	findRegions(plots)
 	values := calculateValues(plots)
@@ -170,4 +218,13 @@ func main() {
 		totalPrice += value
 	}
 	fmt.Println("Total price: ", totalPrice)
+
+	bulkValues := calculateBulkValues(plots)
+	fmt.Println(bulkValues)
+
+	bulkPrice := 0
+	for _, value := range bulkValues {
+		bulkPrice += value
+	}
+	fmt.Println("Bulk price: ", bulkPrice)
 }
