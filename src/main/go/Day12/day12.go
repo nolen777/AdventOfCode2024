@@ -104,17 +104,27 @@ func findRegions(plots [][]Plot) {
 	}
 }
 
-func perimeterValue(plots [][]Plot, coords Coords) int {
-	neighbors := neighbors(plots, coords)
+func perimeterValues(plots [][]Plot, coords Coords) [4]int {
 	regionId := plots[coords.r][coords.c].regionId
 
-	perimeterValue := 4 - len(neighbors)
-	for _, n := range neighbors {
-		if plots[n.r][n.c].regionId != regionId {
-			perimeterValue++
-		}
+	perimeterValues := [4]int{}
+
+	i := coords.r
+	j := coords.c
+
+	if i == 0 || plots[i-1][j].regionId != regionId {
+		perimeterValues[0] = 1
 	}
-	return perimeterValue
+	if j == len(plots[i])-1 || plots[i][j+1].regionId != regionId {
+		perimeterValues[1] = 1
+	}
+	if i == len(plots)-1 || plots[i+1][j].regionId != regionId {
+		perimeterValues[2] = 1
+	}
+	if j == 0 || plots[i][j-1].regionId != regionId {
+		perimeterValues[3] = 1
+	}
+	return perimeterValues
 }
 
 func calculateValues(plots [][]Plot) []int {
@@ -129,7 +139,11 @@ func calculateValues(plots [][]Plot) []int {
 			for j, plot := range row {
 				if plot.regionId == regionId {
 					regionArea++
-					regionPerimeter += perimeterValue(plots, Coords{r: i, c: j})
+					perim := perimeterValues(plots, Coords{r: i, c: j})
+
+					for _, p := range perim {
+						regionPerimeter += p
+					}
 				}
 			}
 		}
