@@ -93,15 +93,17 @@ func solveOne(m Machine) (int, int, bool) {
 }
 
 func main() {
-	machines := parseMachines("resources/Day13/sample.txt")
+	machines := parseMachines("resources/Day13/input.txt")
 	fmt.Println(machines)
-	//
-	// PART 1
-	//
 
 	const aCost = 3
 	const bCost = 1
 
+	//
+	// PART 1
+	//
+
+	fmt.Println("PART 1")
 	totalCost := 0
 	for _, m := range machines {
 		a, b, ok := solveOne(m)
@@ -117,5 +119,24 @@ func main() {
 	//
 	// PART 2
 	//
+
+	fmt.Println("PART 2")
+	const addVal = 10000000000000
+	for i := 0; i < len(machines); i++ {
+		machines[i].prizeX += addVal
+		machines[i].prizeY += addVal
+	}
+
+	totalCost = 0
+	for _, m := range machines {
+		a, b, ok := solveOne(m)
+		if ok {
+			fmt.Println("Found solution ", a, ", ", b)
+			totalCost += a*aCost + b*bCost
+		} else {
+			fmt.Println("No solution.")
+		}
+	}
+	fmt.Println("Total cost: ", totalCost)
 
 }
