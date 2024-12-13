@@ -206,7 +206,7 @@ func calculateBulkValues(plots [][]Plot) []int {
 }
 
 func main() {
-	grid := parseBytes("resources/Day12/sampleinput.txt")
+	grid := parseBytes("resources/Day12/input.txt")
 	plots := makePlots(grid)
 	findRegions(plots)
 	values := calculateValues(plots)
