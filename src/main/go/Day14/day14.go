@@ -49,7 +49,7 @@ func parseRobots(fileName string) []RobotInfo {
 	return robots
 }
 
-func printRobots(robots []RobotInfo, size CPair) {
+func robotPositions(robots []RobotInfo, size CPair) [][]int {
 	grid := make([][]int, 0, size.y)
 	for i := 0; i < size.y; i++ {
 		grid = append(grid, make([]int, size.x))
@@ -58,6 +58,12 @@ func printRobots(robots []RobotInfo, size CPair) {
 	for _, robot := range robots {
 		grid[robot.position.y][robot.position.x]++
 	}
+
+	return grid
+}
+
+func printRobots(robots []RobotInfo, size CPair) {
+	grid := robotPositions(robots, size)
 
 	for _, row := range grid {
 		for _, c := range row {
@@ -111,8 +117,8 @@ func safetyFactor(robots []RobotInfo, size CPair) int {
 }
 
 func part1() {
-	size := CPair{11, 7}
-	robots := parseRobots("resources/day14/sample.txt")
+	size := CPair{101, 103}
+	robots := parseRobots("resources/day14/input.txt")
 	printRobots(robots, size)
 	fmt.Println("")
 	newRobots := moveRobots(robots, 100, size)
@@ -121,6 +127,59 @@ func part1() {
 	fmt.Println("safety factor: ", safetyFactor(newRobots, size))
 }
 
+func part2() {
+	size := CPair{101, 103}
+	robots := parseRobots("resources/day14/input.txt")
+	count := 0
+	for {
+		count++
+		robots = moveRobots(robots, 1, size)
+		//printRobots(robots, size)
+		grid := robotPositions(robots, size)
+
+		found := false
+		for y := 0; y < size.y; y++ {
+			failed := false
+			for x := size.x/2 - 3; x < size.x/2+3; x++ {
+				if grid[y][x] == 0 {
+					failed = true
+					break
+				}
+			}
+			if !failed {
+				found = true
+				break
+			}
+		}
+
+		if found {
+			printRobots(robots, size)
+			fmt.Println("count is ", count)
+			break
+		}
+
+		//for y := 0; y < 3; y++ {
+		//	if grid[y][5] > 0 && grid[y+1][4] > 0 && grid[y+1][6] > 0 {
+		//		printRobots(robots, size)
+		//	}
+		//}
+		//for y := 80; y < 103; y++ {
+		//	fail := false
+		//	for x := 45; x < 55; x++ {
+		//		if grid[y][x] == 0 {
+		//			fail = true
+		//			break
+		//		}
+		//	}
+		//	if !fail {
+		//		printRobots(robots, size)
+		//		return
+		//	}
+		//}
+	}
+}
+
 func main() {
-	part1()
+	//part1()
+	part2()
 }
