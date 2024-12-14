@@ -49,7 +49,38 @@ func parseRobots(fileName string) []RobotInfo {
 	return robots
 }
 
-func main() {
+//func moveRobots(robots []RobotInfo, stepCount int, width int, height int) []RobotInfo {
+//
+//}
+
+func printRobots(robots []RobotInfo, size CPair) {
+	grid := make([][]int, 0, size.y)
+	for i := 0; i < size.y; i++ {
+		grid = append(grid, make([]int, size.x))
+	}
+
+	for _, robot := range robots {
+		grid[robot.position.y][robot.position.x]++
+	}
+
+	for _, row := range grid {
+		for _, c := range row {
+			if c == 0 {
+				fmt.Print(".")
+			} else {
+				fmt.Print(c)
+			}
+		}
+		fmt.Println("")
+	}
+}
+
+func part1() {
+	size := CPair{11, 7}
 	robots := parseRobots("resources/day14/sample.txt")
-	fmt.Println(robots)
+	printRobots(robots, size)
+}
+
+func main() {
+	part1()
 }
