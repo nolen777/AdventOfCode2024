@@ -49,10 +49,6 @@ func parseRobots(fileName string) []RobotInfo {
 	return robots
 }
 
-//func moveRobots(robots []RobotInfo, stepCount int, width int, height int) []RobotInfo {
-//
-//}
-
 func printRobots(robots []RobotInfo, size CPair) {
 	grid := make([][]int, 0, size.y)
 	for i := 0; i < size.y; i++ {
@@ -75,10 +71,54 @@ func printRobots(robots []RobotInfo, size CPair) {
 	}
 }
 
+func mod(a int, b int) int {
+	return (a%b + b) % b
+}
+
+func moveRobots(robots []RobotInfo, stepCount int, size CPair) []RobotInfo {
+	newRobots := make([]RobotInfo, 0, len(robots))
+
+	for _, robot := range robots {
+		newRobot := robot
+		newRobot.position.x = mod(newRobot.position.x+stepCount*newRobot.velocity.x, size.x)
+		newRobot.position.y = mod(newRobot.position.y+stepCount*newRobot.velocity.y, size.y)
+		newRobots = append(newRobots, newRobot)
+	}
+
+	return newRobots
+}
+
+func safetyFactor(robots []RobotInfo, size CPair) int {
+	quads := [4]int{}
+
+	for _, robot := range robots {
+		if robot.position.y < size.y/2 {
+			if robot.position.x < size.x/2 {
+				quads[0]++
+			} else if robot.position.x > size.x/2 {
+				quads[1]++
+			}
+		} else if robot.position.y > size.y/2 {
+			if robot.position.x < size.x/2 {
+				quads[2]++
+			} else if robot.position.x > size.x/2 {
+				quads[3]++
+			}
+		}
+	}
+
+	return quads[0] * quads[1] * quads[2] * quads[3]
+}
+
 func part1() {
 	size := CPair{11, 7}
 	robots := parseRobots("resources/day14/sample.txt")
 	printRobots(robots, size)
+	fmt.Println("")
+	newRobots := moveRobots(robots, 100, size)
+	printRobots(newRobots, size)
+
+	fmt.Println("safety factor: ", safetyFactor(newRobots, size))
 }
 
 func main() {
