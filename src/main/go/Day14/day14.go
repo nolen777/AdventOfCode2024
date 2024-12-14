@@ -137,17 +137,24 @@ func part2() {
 		//printRobots(robots, size)
 		grid := robotPositions(robots, size)
 
+		// I was stabbing in the dark here, but I figured the base of the tree would have a lot
+		// of robots in a horizontal line, so I looked for a bunch grouped together
 		found := false
 		for y := 0; y < size.y; y++ {
-			failed := false
-			for x := size.x/2 - 3; x < size.x/2+3; x++ {
-				if grid[y][x] == 0 {
-					failed = true
-					break
+			filledInARow := 0
+			for x := 0; x < size.x; x++ {
+				if grid[y][x] == 1 {
+					filledInARow++
+
+					if filledInARow > 10 {
+						found = true
+						break
+					}
+				} else {
+					filledInARow = 0
 				}
 			}
-			if !failed {
-				found = true
+			if found {
 				break
 			}
 		}
