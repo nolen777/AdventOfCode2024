@@ -8,24 +8,26 @@ import (
 )
 
 const (
-	Wall  = '#'
-	Empty = '.'
-	Box   = 'O'
-	Robot = '@'
+	Wall     = rune('#')
+	Empty    = rune('.')
+	Box      = rune('O')
+	BoxLeft  = rune('[')
+	BoxRight = rune(']')
+	Robot    = rune('@')
 )
 
 const (
-	Up    = '^'
-	Right = '>'
-	Left  = '<'
-	Down  = 'v'
+	Up    = rune('^')
+	Right = rune('>')
+	Left  = rune('<')
+	Down  = rune('v')
 )
 
 type WarehouseMap struct {
-	grid                  [][]int
+	grid                  [][]rune
 	robotRow              int
 	robotColumn           int
-	remainingInstructions []int
+	remainingInstructions []rune
 }
 
 func parseMap(fileName string) WarehouseMap {
@@ -47,9 +49,9 @@ func parseMap(fileName string) WarehouseMap {
 		if line == "" {
 			break
 		}
-		row := []int{}
+		row := []rune{}
 		for columnIndex, b := range line {
-			row = append(row, int(b))
+			row = append(row, b)
 			if b == Robot {
 				wm.robotRow = rowIndex
 				wm.robotColumn = columnIndex
@@ -63,7 +65,55 @@ func parseMap(fileName string) WarehouseMap {
 	for scanner.Scan() {
 		line := scanner.Text()
 		for _, b := range line {
-			wm.remainingInstructions = append(wm.remainingInstructions, int(b))
+			wm.remainingInstructions = append(wm.remainingInstructions, b)
+		}
+	}
+	return wm
+}
+
+func parseWideMap(fileName string) WarehouseMap {
+	file, err := os.Open(fileName)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	wm := WarehouseMap{}
+
+	scanner := bufio.NewScanner(file)
+
+	rowIndex := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "" {
+			break
+		}
+		row := []rune{}
+		for columnIndex, b := range line {
+			switch b {
+			case Wall:
+				row = append(row, Wall, Wall)
+			case Box:
+				row = append(row, BoxLeft, BoxRight)
+			case Empty:
+				row = append(row, Empty, Empty)
+			case Robot:
+				row = append(row, Robot, Empty)
+				wm.robotRow = rowIndex
+				wm.robotColumn = 2 * columnIndex
+			}
+		}
+
+		wm.grid = append(wm.grid, row)
+		rowIndex++
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		for _, b := range line {
+			wm.remainingInstructions = append(wm.remainingInstructions, b)
 		}
 	}
 	return wm
@@ -84,29 +134,100 @@ func printMap(warehouseMap WarehouseMap) {
 	fmt.Println("")
 }
 
-func moveObjectInDirection(grid [][]int, column int, row int, columnDiff int, rowDiff int) bool {
-	currentObject := grid[column][row]
+func canMoveBigBoxInDirection(grid [][]rune, leftColumn int, row int, rowDiff int) bool {
+	currentObject := grid[row][leftColumn]
 
-	if currentObject != Box && currentObject != Robot {
-		log.Fatal("Can only move robots and boxes")
+	if currentObject != BoxLeft || grid[row][leftColumn+1] != BoxRight {
+		log.Fatal("Invalid box setup")
 	}
 
-	switch grid[column+columnDiff][row+rowDiff] {
+	// Check up/down from the left side
+	switch grid[row+rowDiff][leftColumn] {
 	case Wall:
 		return false
 	case Empty:
-		grid[column+columnDiff][row+rowDiff] = currentObject
-		grid[column][row] = Empty
+
+	case BoxLeft:
+		if !canMoveBigBoxInDirection(grid, leftColumn, row+rowDiff, rowDiff) {
+			return false
+		}
+	case BoxRight:
+		if !canMoveBigBoxInDirection(grid, leftColumn-1, row+rowDiff, rowDiff) {
+			return false
+		}
+	case Robot:
+		log.Fatal("Pushing into robot?!")
+	}
+
+	switch grid[row+rowDiff][leftColumn+1] {
+	case Wall:
+		return false
+	case Empty:
+
+	case BoxLeft:
+		if !canMoveBigBoxInDirection(grid, leftColumn+1, row+rowDiff, rowDiff) {
+			return false
+		}
+	case BoxRight:
+		if !canMoveBigBoxInDirection(grid, leftColumn, row+rowDiff, rowDiff) {
+			return false
+		}
+	case Robot:
+		log.Fatal("Pushing into robot?!")
+	}
+
+	return true
+}
+
+func moveObjectInDirection(grid [][]rune, column int, row int, columnDiff int, rowDiff int) bool {
+	currentObject := grid[row][column]
+
+	if currentObject == Empty {
 		return true
-	case Box:
-		if moveObjectInDirection(grid, column+columnDiff, row+rowDiff, columnDiff, rowDiff) {
-			grid[column+columnDiff][row+rowDiff] = currentObject
-			grid[column][row] = Empty
+	}
+	if currentObject != Box && currentObject != Robot && currentObject != BoxLeft && currentObject != BoxRight {
+		log.Fatal("Can only move robots and boxes")
+	}
+
+	// Part 1, or robots for part 2, or strict left/right
+	if currentObject == Box || currentObject == Robot || rowDiff == 0 {
+		switch grid[row+rowDiff][column+columnDiff] {
+		case Wall:
+			return false
+		case Empty:
+			grid[row+rowDiff][column+columnDiff] = currentObject
+			grid[row][column] = Empty
+			return true
+		case Box, BoxLeft, BoxRight:
+			if moveObjectInDirection(grid, column+columnDiff, row+rowDiff, columnDiff, rowDiff) {
+				grid[row+rowDiff][column+columnDiff] = currentObject
+				grid[row][column] = Empty
+				return true
+			}
+			return false
+		case Robot:
+			log.Fatal("Pushing into robot?!")
+		}
+
+		log.Fatal("Impossible condition")
+		return false
+	}
+
+	// Part 2, up and down big boxes
+	if currentObject == BoxLeft {
+		if canMoveBigBoxInDirection(grid, column, row, rowDiff) {
+			moveObjectInDirection(grid, column, row+rowDiff, columnDiff, rowDiff)
+			moveObjectInDirection(grid, column+1, row+rowDiff, columnDiff, rowDiff)
+			grid[row+rowDiff][column] = BoxLeft
+			grid[row+rowDiff][column+1] = BoxRight
+			grid[row][column] = Empty
+			grid[row][column+1] = Empty
 			return true
 		}
 		return false
-	case Robot:
-		log.Fatal("Pushing into robot?!")
+	}
+	if currentObject == BoxRight {
+		return moveObjectInDirection(grid, column-1, row, columnDiff, rowDiff)
 	}
 
 	log.Fatal("Impossible condition")
@@ -132,7 +253,7 @@ func executeOneMove(warehouseMap WarehouseMap) WarehouseMap {
 		columnDiff = -1
 	}
 
-	if moveObjectInDirection(warehouseMap.grid, warehouseMap.robotRow, warehouseMap.robotColumn, rowDiff, columnDiff) {
+	if moveObjectInDirection(warehouseMap.grid, warehouseMap.robotColumn, warehouseMap.robotRow, columnDiff, rowDiff) {
 		newRow += rowDiff
 		newColumn += columnDiff
 	}
@@ -149,7 +270,7 @@ func gpsSum(warehouseMap WarehouseMap) int {
 	total := 0
 	for ri, row := range warehouseMap.grid {
 		for ci, b := range row {
-			if b == Box {
+			if b == Box || b == BoxLeft {
 				total += 100*ri + ci
 			}
 		}
@@ -158,7 +279,19 @@ func gpsSum(warehouseMap WarehouseMap) int {
 }
 
 func part1() {
-	wm := parseMap("resources/Day15/sample.txt")
+	wm := parseMap("resources/Day15/input.txt")
+	printMap(wm)
+
+	for len(wm.remainingInstructions) > 0 {
+		wm = executeOneMove(wm)
+		//	printMap(wm)
+	}
+
+	fmt.Println("GPS total: ", gpsSum(wm))
+}
+
+func part2() {
+	wm := parseWideMap("resources/Day15/sample.txt")
 	printMap(wm)
 
 	for len(wm.remainingInstructions) > 0 {
@@ -170,5 +303,6 @@ func part1() {
 }
 
 func main() {
-	part1()
+	//part1()
+	part2()
 }
