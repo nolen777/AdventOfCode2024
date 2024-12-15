@@ -291,12 +291,12 @@ func part1() {
 }
 
 func part2() {
-	wm := parseWideMap("resources/Day15/sample.txt")
+	wm := parseWideMap("resources/Day15/input.txt")
 	printMap(wm)
 
 	for len(wm.remainingInstructions) > 0 {
 		wm = executeOneMove(wm)
-		printMap(wm)
+		//printMap(wm)
 	}
 
 	fmt.Println("GPS total: ", gpsSum(wm))
