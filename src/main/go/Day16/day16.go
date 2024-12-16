@@ -115,6 +115,17 @@ func printMap(m Map) {
 	}
 }
 
+func copyMap(m Map) Map {
+	mc := Map{grid: make([][]rune, 0, len(m.grid)), position: m.position, direction: m.direction}
+
+	for _, row := range m.grid {
+		rowCopy := make([]rune, 0, len(row))
+		rowCopy = append(rowCopy, row...)
+		mc.grid = append(mc.grid, rowCopy)
+	}
+	return mc
+}
+
 const MaxUint = ^uint(0)
 const MaxInt = int(MaxUint >> 1)
 
@@ -135,7 +146,6 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 	found := false
 	lowestPoints := MaxInt
 	var bestMap Map
-	replacement := Empty
 
 	// move forward
 	forwardMap := m
@@ -156,7 +166,6 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 		if forwardPoints < lowestPoints {
 			bestMap = forwardMap
 			lowestPoints = forwardPoints
-			replacement = m.direction
 		}
 	}
 	m.grid[m.position.row][m.position.column] = Empty
@@ -188,9 +197,6 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 		}
 	}
 
-	if found {
-		m.grid[m.position.row][m.position.column] = replacement
-	}
 	return lowestPoints, bestMap, found
 }
 
@@ -201,7 +207,6 @@ func part1() {
 	points, bestMap, success := recursiveTry(startMap, 0, 0)
 
 	if success {
-		fmt.Println("Success!")
 		printMap(bestMap)
 		fmt.Println(points)
 	} else {
