@@ -138,6 +138,10 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 	if currentTile == End {
 		return points, m, true
 	}
+	if currentTile == Wall {
+		// Hit a wall, skip
+		return points, m, false
+	}
 	if currentTile != Empty {
 		// We've done this before; skip
 		return points, m, false
