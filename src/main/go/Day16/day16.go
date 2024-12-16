@@ -24,43 +24,25 @@ const (
 	Seat = rune('O')
 )
 
-func clockwiseTurn(dir rune) rune {
-	switch dir {
-	case North:
-		return East
-	case East:
-		return South
-	case South:
-		return West
-	case West:
-		return North
-	}
-	log.Fatal("invalid direction")
-	return 0
-}
-
-func counterclockwiseTurn(dir rune) rune {
-	switch dir {
-	case North:
-		return West
-	case East:
-		return North
-	case South:
-		return East
-	case West:
-		return South
-	}
-	log.Fatal("invalid direction")
-	return 0
-}
-
 type Coords struct {
 	row    int
 	column int
 }
 
+type Tile struct {
+	status          rune
+	northFacingCost int
+	eastFacingCost  int
+	southFacingCost int
+	westFacingCost  int
+}
+
+func (t Tile) minCost() int {
+	return min(t.northFacingCost, t.eastFacingCost, t.southFacingCost, t.westFacingCost)
+}
+
 type Map struct {
-	grid      [][]rune
+	grid      [][]Tile
 	position  Coords
 	direction rune // one of the four track directions above
 }
@@ -73,7 +55,7 @@ func parseMap(fileName string) Map {
 	}
 	defer file.Close()
 
-	startMap := Map{grid: make([][]rune, 0), direction: East}
+	startMap := Map{grid: make([][]Tile, 0), direction: East}
 
 	scanner := bufio.NewScanner(file)
 
@@ -81,13 +63,15 @@ func parseMap(fileName string) Map {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		row := make([]rune, 0)
+		row := make([]Tile, 0)
 		for colIndex, r := range line {
+			newTile := Tile{status: r, northFacingCost: InitialCost, eastFacingCost: InitialCost, southFacingCost: InitialCost, westFacingCost: InitialCost}
+
 			if r == Start {
 				startMap.position = Coords{row: rowIndex, column: colIndex}
+				newTile.eastFacingCost = 0
 			}
-			row = append(row, r)
-
+			row = append(row, newTile)
 		}
 		startMap.grid = append(startMap.grid, row)
 		rowIndex++
@@ -98,8 +82,8 @@ func parseMap(fileName string) Map {
 
 func printMap(m Map) {
 	for _, row := range m.grid {
-		for _, r := range row {
-			fmt.Print(string(r))
+		for _, t := range row {
+			fmt.Print(string(t.status))
 		}
 		fmt.Println("")
 	}
@@ -117,26 +101,12 @@ func printMap(m Map) {
 	}
 }
 
-func copyMap(m Map) Map {
-	mc := Map{grid: make([][]rune, 0, len(m.grid)), position: m.position, direction: m.direction}
-
-	for _, row := range m.grid {
-		rowCopy := make([]rune, 0, len(row))
-		rowCopy = append(rowCopy, row...)
-		mc.grid = append(mc.grid, rowCopy)
-	}
-	return mc
-}
-
 const MaxUint = ^uint(0)
 const MaxInt = int(MaxUint >> 1)
+const InitialCost = MaxInt - turnPoints - forwardPoints
 
 const forwardPoints = 1
 const turnPoints = 1000
-
-var found bool = false
-var lowestPoints int = MaxInt
-var bestMap Map
 
 func fillWalls(m Map) Map {
 	changing := true
@@ -144,24 +114,24 @@ func fillWalls(m Map) Map {
 	for changing {
 		changing = false
 		for rowIndex, row := range m.grid {
-			for columnIndex, r := range row {
-				if r == Empty {
+			for columnIndex, t := range row {
+				if t.status == Empty {
 					wallCount := 0
-					if m.grid[rowIndex][columnIndex-1] == Wall {
+					if m.grid[rowIndex][columnIndex-1].status == Wall {
 						wallCount++
 					}
-					if m.grid[rowIndex][columnIndex+1] == Wall {
+					if m.grid[rowIndex][columnIndex+1].status == Wall {
 						wallCount++
 					}
-					if m.grid[rowIndex-1][columnIndex] == Wall {
+					if m.grid[rowIndex-1][columnIndex].status == Wall {
 						wallCount++
 					}
-					if m.grid[rowIndex+1][columnIndex] == Wall {
+					if m.grid[rowIndex+1][columnIndex].status == Wall {
 						wallCount++
 					}
 					if wallCount >= 3 {
 						changing = true
-						m.grid[rowIndex][columnIndex] = Wall
+						m.grid[rowIndex][columnIndex].status = Wall
 					}
 				}
 			}
@@ -171,51 +141,68 @@ func fillWalls(m Map) Map {
 	return m
 }
 
-func calcGrid(oneGrid [][]int, clock [][]int, counter [][]int, rowIndex int, columnIndex int, rowDiff int, colDiff int) int {
-	currentCost := oneGrid[rowIndex][columnIndex]
+func calcGrid(m Map, rowIndex int, columnIndex int) int {
+	currentTile := m.grid[rowIndex][columnIndex]
 	changes := 0
+
 	// try by walking forward
-	if oneGrid[rowIndex+rowDiff][columnIndex+colDiff]+forwardPoints < currentCost {
+	if m.grid[rowIndex-1][columnIndex].southFacingCost+forwardPoints < currentTile.southFacingCost {
 		changes = 1
-		oneGrid[rowIndex][columnIndex] = oneGrid[rowIndex+rowDiff][columnIndex+colDiff] + forwardPoints
+		m.grid[rowIndex][columnIndex].southFacingCost = m.grid[rowIndex-1][columnIndex].southFacingCost + forwardPoints
 	}
+	if m.grid[rowIndex][columnIndex-1].eastFacingCost+forwardPoints < currentTile.eastFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].eastFacingCost = m.grid[rowIndex][columnIndex-1].eastFacingCost + forwardPoints
+	}
+	if m.grid[rowIndex+1][columnIndex].northFacingCost+forwardPoints < currentTile.northFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].northFacingCost = m.grid[rowIndex+1][columnIndex].northFacingCost + forwardPoints
+	}
+	if m.grid[rowIndex][columnIndex+1].westFacingCost+forwardPoints < currentTile.westFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].westFacingCost = m.grid[rowIndex][columnIndex+1].westFacingCost + forwardPoints
+	}
+
 	// try by turning
-	if clock[rowIndex][columnIndex]+turnPoints < currentCost {
+	if currentTile.northFacingCost+turnPoints < currentTile.eastFacingCost {
 		changes = 1
-		oneGrid[rowIndex][columnIndex] = clock[rowIndex][columnIndex] + turnPoints
+		m.grid[rowIndex][columnIndex].eastFacingCost = currentTile.northFacingCost + turnPoints
 	}
-	if counter[rowIndex][columnIndex]+turnPoints < currentCost {
+	if currentTile.northFacingCost+turnPoints < currentTile.westFacingCost {
 		changes = 1
-		oneGrid[rowIndex][columnIndex] = counter[rowIndex][columnIndex] + turnPoints
+		m.grid[rowIndex][columnIndex].westFacingCost = currentTile.northFacingCost + turnPoints
 	}
+	if currentTile.eastFacingCost+turnPoints < currentTile.northFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].northFacingCost = currentTile.eastFacingCost + turnPoints
+	}
+	if currentTile.eastFacingCost+turnPoints < currentTile.southFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].southFacingCost = currentTile.eastFacingCost + turnPoints
+	}
+	if currentTile.southFacingCost+turnPoints < currentTile.eastFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].eastFacingCost = currentTile.southFacingCost + turnPoints
+	}
+	if currentTile.southFacingCost+turnPoints < currentTile.westFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].westFacingCost = currentTile.southFacingCost + turnPoints
+	}
+	if currentTile.westFacingCost+turnPoints < currentTile.northFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].northFacingCost = currentTile.westFacingCost + turnPoints
+	}
+	if currentTile.westFacingCost+turnPoints < currentTile.southFacingCost {
+		changes = 1
+		m.grid[rowIndex][columnIndex].southFacingCost = currentTile.westFacingCost + turnPoints
+	}
+
 	return changes
 }
 
 // returns cost of End
 func progressiveFill(m Map) Map {
-	initialCost := MaxInt - turnPoints - forwardPoints
-
-	makeInitial := func() [][]int {
-		g := make([][]int, 0, len(m.grid))
-		for _, row := range m.grid {
-			gRow := make([]int, 0, len(row))
-			for _, _ = range row {
-				gRow = append(gRow, initialCost)
-			}
-			g = append(g, gRow)
-		}
-		return g
-	}
-
-	// initialize costs for grid
-	northFacing := makeInitial()
-	eastFacing := makeInitial()
-	southFacing := makeInitial()
-	westFacing := makeInitial()
-
-	eastFacing[m.position.row][m.position.column] = 0
-
-	minEndCost := initialCost
+	minEndCost := InitialCost
 
 	var endPosition Coords
 	changes := 1
@@ -226,75 +213,69 @@ func progressiveFill(m Map) Map {
 		// go rows bottom to top
 		for rowIndex := len(m.grid) - 2; rowIndex > 0; rowIndex-- {
 			row := m.grid[rowIndex]
-			for columnIndex, b := range row {
-				if b == Wall {
+			for columnIndex, t := range row {
+				if t.status == Wall {
 					continue
 				}
 
-				tileChanges := 0
-				tileChanges += calcGrid(northFacing, westFacing, eastFacing, rowIndex, columnIndex, 1, 0)
-				tileChanges += calcGrid(eastFacing, northFacing, southFacing, rowIndex, columnIndex, 0, -1)
-				tileChanges += calcGrid(southFacing, westFacing, eastFacing, rowIndex, columnIndex, -1, 0)
-				tileChanges += calcGrid(westFacing, northFacing, southFacing, rowIndex, columnIndex, 0, 1)
+				tileChanges := calcGrid(m, rowIndex, columnIndex)
 
 				changes += tileChanges
 
-				if tileChanges > 0 && b == End {
+				if tileChanges > 0 && t.status == End {
 					endPosition.row = rowIndex
 					endPosition.column = columnIndex
 					//fmt.Println("Arrived!")
 					minEndCost = min(
 						minEndCost,
-						northFacing[rowIndex][columnIndex],
-						eastFacing[rowIndex][columnIndex],
-						southFacing[rowIndex][columnIndex],
-						westFacing[rowIndex][columnIndex])
+						m.grid[rowIndex][columnIndex].minCost())
 					fmt.Println("New end cost: ", minEndCost)
 				}
 			}
 		}
 	}
 
-	return recursiveMarkSeats(endPosition, minEndCost, m, northFacing, eastFacing, southFacing, westFacing)
+	fmt.Println("Min cost: ", minEndCost)
+	return recursiveMarkSeats(endPosition, minEndCost, m)
 }
 
-func recursiveMarkSeats(pos Coords, minCost int, m Map, nf [][]int, ef [][]int, sf [][]int, wf [][]int) Map {
-	if m.grid[pos.row][pos.column] == Wall {
+func recursiveMarkSeats(pos Coords, minCost int, m Map) Map {
+	if m.grid[pos.row][pos.column].status == Wall {
 		return m
 	}
 
-	if nf[pos.row][pos.column] == minCost {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].northFacingCost == minCost {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-forwardPoints, m)
 	}
-	if ef[pos.row][pos.column] == minCost {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column - 1}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].eastFacingCost == minCost {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column - 1}, minCost-forwardPoints, m)
 	}
-	if sf[pos.row][pos.column] == minCost {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row - 1, column: pos.column}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].southFacingCost == minCost {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row - 1, column: pos.column}, minCost-forwardPoints, m)
 	}
-	if wf[pos.row][pos.column] == minCost {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column + 1}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].westFacingCost == minCost {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column + 1}, minCost-forwardPoints, m)
 	}
 
-	if nf[pos.row][pos.column] == minCost-turnPoints {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].northFacingCost == minCost-turnPoints {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-turnPoints-forwardPoints, m)
 	}
-	if ef[pos.row][pos.column] == minCost-turnPoints {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column - 1}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].eastFacingCost == minCost-turnPoints {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column - 1}, minCost-turnPoints-forwardPoints, m)
 	}
-	if sf[pos.row][pos.column] == minCost-turnPoints {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row - 1, column: pos.column}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].southFacingCost == minCost-turnPoints {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row - 1, column: pos.column}, minCost-turnPoints-forwardPoints, m)
 	}
-	if wf[pos.row][pos.column] == minCost-turnPoints {
-		m.grid[pos.row][pos.column] = Seat
-		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column + 1}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	if m.grid[pos.row][pos.column].westFacingCost == minCost-turnPoints {
+		m.grid[pos.row][pos.column].status = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column + 1}, minCost-turnPoints-forwardPoints, m)
 	}
 	return m
 }
@@ -307,7 +288,7 @@ func part1() {
 	startMap = fillWalls(startMap)
 	printMap(startMap)
 
-	startMap.grid[startMap.position.row][startMap.position.column] = Empty
+	startMap.grid[startMap.position.row][startMap.position.column].status = Empty
 
 	filledMap := progressiveFill(startMap)
 	printMap(filledMap)
@@ -315,7 +296,7 @@ func part1() {
 	seatCount := 0
 	for _, row := range filledMap.grid {
 		for _, b := range row {
-			if b == Seat {
+			if b.status == Seat {
 				seatCount++
 			}
 		}
