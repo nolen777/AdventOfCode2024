@@ -171,7 +171,7 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 	m.grid[m.position.row][m.position.column] = Empty
 
 	// Never turn twice in a row
-	if previousTurnDirection == 0 {
+	if previousTurnDirection == 0 && lowestPoints > points+turnPoints+forwardPoints {
 		clockwise := clockwiseTurn(m.direction)
 		counterClockwise := counterclockwiseTurn(m.direction)
 
