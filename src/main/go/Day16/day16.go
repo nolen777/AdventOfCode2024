@@ -238,8 +238,93 @@ func fillWalls(m Map) Map {
 	return m
 }
 
+func calcGrid(oneGrid [][]int, clock [][]int, counter [][]int, rowIndex int, columnIndex int, rowDiff int, colDiff int) int {
+	currentCost := oneGrid[rowIndex][columnIndex]
+	changes := 0
+	// try by walking forward
+	if oneGrid[rowIndex+rowDiff][columnIndex+colDiff]+forwardPoints < currentCost {
+		changes = 1
+		oneGrid[rowIndex][columnIndex] = oneGrid[rowIndex+rowDiff][columnIndex+colDiff] + forwardPoints
+	}
+	// try by turning
+	if clock[rowIndex][columnIndex]+turnPoints < currentCost {
+		changes = 1
+		oneGrid[rowIndex][columnIndex] = clock[rowIndex][columnIndex] + turnPoints
+	}
+	if counter[rowIndex][columnIndex]+turnPoints < currentCost {
+		changes = 1
+		oneGrid[rowIndex][columnIndex] = counter[rowIndex][columnIndex] + turnPoints
+	}
+	return changes
+}
+
+// returns cost of End
+func progressiveFill(m Map) int {
+	initialCost := MaxInt - turnPoints - forwardPoints
+
+	makeInitial := func() [][]int {
+		g := make([][]int, 0, len(m.grid))
+		for _, row := range m.grid {
+			gRow := make([]int, 0, len(row))
+			for _, _ = range row {
+				gRow = append(gRow, initialCost)
+			}
+			g = append(g, gRow)
+		}
+		return g
+	}
+
+	// initialize costs for grid
+	northFacing := makeInitial()
+	eastFacing := makeInitial()
+	southFacing := makeInitial()
+	westFacing := makeInitial()
+
+	eastFacing[m.position.row][m.position.column] = 0
+
+	minEndCost := initialCost
+
+	changes := 1
+	// Go through every tile repeatedly. On each tile, see if we've identified
+	// a cheaper path to it
+	for changes > 0 {
+		changes = 0
+		// go rows bottom to top
+		for rowIndex := len(m.grid) - 2; rowIndex > 0; rowIndex-- {
+			row := m.grid[rowIndex]
+			for columnIndex, b := range row {
+				if b == Wall {
+					continue
+				}
+
+				tileChanges := 0
+				tileChanges += calcGrid(northFacing, westFacing, eastFacing, rowIndex, columnIndex, 1, 0)
+				tileChanges += calcGrid(eastFacing, northFacing, southFacing, rowIndex, columnIndex, 0, -1)
+				tileChanges += calcGrid(southFacing, westFacing, eastFacing, rowIndex, columnIndex, -1, 0)
+				tileChanges += calcGrid(westFacing, northFacing, southFacing, rowIndex, columnIndex, 0, 1)
+
+				changes += tileChanges
+
+				if tileChanges > 0 && b == End {
+					//fmt.Println("Arrived!")
+					minEndCost = min(
+						minEndCost,
+						northFacing[rowIndex][columnIndex],
+						eastFacing[rowIndex][columnIndex],
+						southFacing[rowIndex][columnIndex],
+						westFacing[rowIndex][columnIndex])
+					fmt.Println("New end cost: ", minEndCost)
+				}
+			}
+		}
+		//fmt.Println("Changed ", changes, " tiles")
+	}
+	return minEndCost
+}
+
 func part1() {
-	startMap := parseMap("resources/Day16/sample.txt")
+	// Try spreading out costs
+	startMap := parseMap("resources/Day16/input.txt")
 	printMap(startMap)
 
 	startMap = fillWalls(startMap)
@@ -247,14 +332,16 @@ func part1() {
 
 	startMap.grid[startMap.position.row][startMap.position.column] = Empty
 
-	points, bestMap, success := recursiveTry(startMap, 0, 0)
+	progressiveFill(startMap)
 
-	if success {
-		printMap(bestMap)
-		fmt.Println(points)
-	} else {
-		fmt.Println("Failed!")
-	}
+	//	points, bestMap, success := recursiveTry(startMap, 0, 0)
+
+	//if success {
+	//	printMap(bestMap)
+	//	fmt.Println(points)
+	//} else {
+	//	fmt.Println("Failed!")
+	//}
 }
 
 func main() {
