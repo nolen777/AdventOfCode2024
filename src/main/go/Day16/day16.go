@@ -104,13 +104,13 @@ func printMap(m Map) {
 	fmt.Println("Position: row ", m.position.row, ", column ", m.position.column)
 	fmt.Print("Direction: ")
 	switch m.direction {
-	case 0:
+	case North:
 		fmt.Println("North")
-	case 1:
+	case East:
 		fmt.Println("East")
-	case 2:
+	case South:
 		fmt.Println("South")
-	case 3:
+	case West:
 		fmt.Println("West")
 	}
 }
@@ -133,7 +133,7 @@ const forwardPoints = 1
 const turnPoints = 1000
 
 // Returns the point total and a "success" flag
-func recursiveTry(m Map, points int) (int, Map, bool) {
+func recursiveTry(m Map, points int, previousTurnDirection rune, previousTurnCount int) (int, Map, bool) {
 	currentTile := m.grid[m.position.row][m.position.column]
 	if currentTile == End {
 		return points, m, true
@@ -150,7 +150,6 @@ func recursiveTry(m Map, points int) (int, Map, bool) {
 	// move forward
 	forwardMap := copyMap(m)
 	forwardMap.grid[forwardMap.position.row][forwardMap.position.column] = m.direction
-	//printMap(forwardMap)
 	switch m.direction {
 	case North:
 		forwardMap.position.row--
@@ -161,7 +160,7 @@ func recursiveTry(m Map, points int) (int, Map, bool) {
 	case West:
 		forwardMap.position.column--
 	}
-	forwardPoints, forwardMap, success := recursiveTry(forwardMap, points+forwardPoints)
+	forwardPoints, forwardMap, success := recursiveTry(forwardMap, points+forwardPoints, 0, 0)
 	if success {
 		found = true
 		if forwardPoints < lowestPoints {
@@ -170,27 +169,37 @@ func recursiveTry(m Map, points int) (int, Map, bool) {
 		}
 	}
 
-	clockwise := clockwiseTurn(m.direction)
-	counterClockwise := counterclockwiseTurn(m.direction)
-	// turn clockwise
-	m.direction = clockwiseTurn(clockwise)
-	clockwisePoints, clMap, success := recursiveTry(m, points+turnPoints)
-	if success {
-		found = true
-		if clockwisePoints < lowestPoints {
-			bestMap = clMap
-			lowestPoints = clockwisePoints
-		}
-	}
+	// If we've already turned twice, we're done
+	if previousTurnCount < 2 {
+		clockwise := clockwiseTurn(m.direction)
+		counterClockwise := counterclockwiseTurn(m.direction)
 
-	// turn counterclockwise
-	m.direction = clockwiseTurn(counterClockwise)
-	counterClockwisePoints, ccMap, success := recursiveTry(m, points+turnPoints)
-	if success {
-		found = true
-		if counterClockwisePoints < lowestPoints {
-			bestMap = ccMap
-			lowestPoints = counterClockwisePoints
+		// No need to try clockwise if we last did counterclockwise
+		if previousTurnDirection != 2 {
+			// turn clockwise
+			m.direction = clockwise
+			clockwisePoints, clMap, success := recursiveTry(m, points+turnPoints, 1, previousTurnCount+1)
+			if success {
+				found = true
+				if clockwisePoints < lowestPoints {
+					bestMap = clMap
+					lowestPoints = clockwisePoints
+				}
+			}
+		}
+
+		// Ditto, no clock then counterclock
+		if previousTurnDirection != 1 {
+			// turn counterclockwise
+			m.direction = counterClockwise
+			counterClockwisePoints, ccMap, success := recursiveTry(m, points+turnPoints, 2, previousTurnCount+1)
+			if success {
+				found = true
+				if counterClockwisePoints < lowestPoints {
+					bestMap = ccMap
+					lowestPoints = counterClockwisePoints
+				}
+			}
 		}
 	}
 
@@ -201,7 +210,7 @@ func main() {
 	startMap := parseMap("resources/Day16/sample.txt")
 	printMap(startMap)
 
-	points, bestMap, success := recursiveTry(startMap, 0)
+	points, bestMap, success := recursiveTry(startMap, 0, 0, 0)
 
 	if success {
 		printMap(bestMap)
