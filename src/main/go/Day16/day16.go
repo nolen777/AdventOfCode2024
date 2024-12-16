@@ -19,6 +19,9 @@ const (
 	East  = rune('>')
 	South = rune('v')
 	West  = rune('<')
+
+	// seats
+	Seat = rune('O')
 )
 
 func clockwiseTurn(dir rune) rune {
@@ -134,76 +137,6 @@ const turnPoints = 1000
 var found bool = false
 var lowestPoints int = MaxInt
 var bestMap Map
-
-// Returns the point total and a "success" flag
-func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool) {
-	currentTile := m.grid[m.position.row][m.position.column]
-	if currentTile == End {
-		return points, m, true
-	}
-	if currentTile == Wall {
-		// Hit a wall, skip
-		return points, m, false
-	}
-	if currentTile != Empty {
-		// We've done this before; skip
-		return points, m, false
-	}
-	if found && points > lowestPoints {
-		return points, m, false
-	}
-
-	// move forward
-	forwardMap := m
-	forwardMap.grid[forwardMap.position.row][forwardMap.position.column] = m.direction
-	switch m.direction {
-	case North:
-		forwardMap.position.row--
-	case East:
-		forwardMap.position.column++
-	case South:
-		forwardMap.position.row++
-	case West:
-		forwardMap.position.column--
-	}
-	forwardPoints, forwardMap, success := recursiveTry(forwardMap, points+forwardPoints, 0)
-	if success {
-		found = true
-		if forwardPoints < lowestPoints {
-			bestMap = copyMap(forwardMap)
-			lowestPoints = forwardPoints
-		}
-	}
-	m.grid[m.position.row][m.position.column] = Empty
-
-	// Never turn twice in a row
-	if previousTurnDirection == 0 && lowestPoints > points+turnPoints+forwardPoints {
-		clockwise := clockwiseTurn(m.direction)
-		counterClockwise := counterclockwiseTurn(m.direction)
-
-		tryTurn := func(dir rune) {
-			m.direction = dir
-			pts, clMap, success := recursiveTry(m, points+turnPoints, 1)
-			if success {
-				found = true
-				if pts < lowestPoints {
-					bestMap = clMap
-					lowestPoints = pts
-				}
-			}
-		}
-
-		if clockwise == North || clockwise == East {
-			tryTurn(clockwise)
-			tryTurn(counterClockwise)
-		} else {
-			tryTurn(counterClockwise)
-			tryTurn(clockwise)
-		}
-	}
-
-	return lowestPoints, bestMap, found
-}
 
 func fillWalls(m Map) Map {
 	changing := true
