@@ -148,7 +148,7 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 	var bestMap Map
 
 	// move forward
-	forwardMap := copyMap(m)
+	forwardMap := m
 	forwardMap.grid[forwardMap.position.row][forwardMap.position.column] = m.direction
 	switch m.direction {
 	case North:
@@ -168,6 +168,7 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 			lowestPoints = forwardPoints
 		}
 	}
+	m.grid[m.position.row][m.position.column] = Empty
 
 	// Never turn twice in a row
 	if previousTurnDirection == 0 {
