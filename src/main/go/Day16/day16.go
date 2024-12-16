@@ -82,7 +82,6 @@ func parseMap(fileName string) Map {
 		for colIndex, r := range line {
 			if r == Start {
 				startMap.position = Coords{row: rowIndex, column: colIndex}
-				r = Empty
 			}
 			row = append(row, r)
 
@@ -206,9 +205,47 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 	return lowestPoints, bestMap, found
 }
 
+func fillWalls(m Map) Map {
+	changing := true
+
+	for changing {
+		changing = false
+		for rowIndex, row := range m.grid {
+			for columnIndex, r := range row {
+				if r == Empty {
+					wallCount := 0
+					if m.grid[rowIndex][columnIndex-1] == Wall {
+						wallCount++
+					}
+					if m.grid[rowIndex][columnIndex+1] == Wall {
+						wallCount++
+					}
+					if m.grid[rowIndex-1][columnIndex] == Wall {
+						wallCount++
+					}
+					if m.grid[rowIndex+1][columnIndex] == Wall {
+						wallCount++
+					}
+					if wallCount >= 3 {
+						changing = true
+						m.grid[rowIndex][columnIndex] = Wall
+					}
+				}
+			}
+		}
+	}
+
+	return m
+}
+
 func part1() {
-	startMap := parseMap("resources/Day16/input.txt")
+	startMap := parseMap("resources/Day16/sample.txt")
 	printMap(startMap)
+
+	startMap = fillWalls(startMap)
+	printMap(startMap)
+
+	startMap.grid[startMap.position.row][startMap.position.column] = Empty
 
 	points, bestMap, success := recursiveTry(startMap, 0, 0)
 
