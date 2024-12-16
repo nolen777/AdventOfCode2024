@@ -212,6 +212,7 @@ func progressiveFill(m Map) Map {
 		changes = 0
 		// go rows bottom to top
 		for rowIndex := len(m.grid) - 2; rowIndex > 0; rowIndex-- {
+			rowHasEntries := false
 			row := m.grid[rowIndex]
 			for columnIndex, t := range row {
 				if t.status == Wall {
@@ -231,6 +232,15 @@ func progressiveFill(m Map) Map {
 						m.grid[rowIndex][columnIndex].minCost())
 					fmt.Println("New end cost: ", minEndCost)
 				}
+
+				if row[columnIndex].minCost() < InitialCost {
+					rowHasEntries = true
+				}
+			}
+			// Since we started from the bottom, if a row has no costs set, we can break -- nothing
+			// above possibly can
+			if !rowHasEntries {
+				break
 			}
 		}
 	}
@@ -281,7 +291,6 @@ func recursiveMarkSeats(pos Coords, minCost int, m Map) Map {
 }
 
 func part1() {
-	// Try spreading out costs
 	startMap := parseMap("resources/Day16/input.txt")
 	printMap(startMap)
 
