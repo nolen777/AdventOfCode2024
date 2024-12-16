@@ -132,6 +132,10 @@ const MaxInt = int(MaxUint >> 1)
 const forwardPoints = 1
 const turnPoints = 1000
 
+var found bool = false
+var lowestPoints int = MaxInt
+var bestMap Map
+
 // Returns the point total and a "success" flag
 func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool) {
 	currentTile := m.grid[m.position.row][m.position.column]
@@ -146,10 +150,9 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 		// We've done this before; skip
 		return points, m, false
 	}
-
-	found := false
-	lowestPoints := MaxInt
-	var bestMap Map
+	if found && points > lowestPoints {
+		return points, m, false
+	}
 
 	// move forward
 	forwardMap := m
@@ -204,7 +207,7 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 }
 
 func part1() {
-	startMap := parseMap("resources/Day16/sample.txt")
+	startMap := parseMap("resources/Day16/input.txt")
 	printMap(startMap)
 
 	points, bestMap, success := recursiveTry(startMap, 0, 0)
