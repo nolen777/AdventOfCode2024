@@ -263,8 +263,6 @@ func recursiveMarkSeats(pos Coords, minCost int, m Map, nf [][]int, ef [][]int, 
 		return m
 	}
 
-	printMap(m)
-
 	if nf[pos.row][pos.column] == minCost {
 		m.grid[pos.row][pos.column] = Seat
 		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-forwardPoints, m, nf, ef, sf, wf)
@@ -303,7 +301,7 @@ func recursiveMarkSeats(pos Coords, minCost int, m Map, nf [][]int, ef [][]int, 
 
 func part1() {
 	// Try spreading out costs
-	startMap := parseMap("resources/Day16/sample.txt")
+	startMap := parseMap("resources/Day16/input.txt")
 	printMap(startMap)
 
 	startMap = fillWalls(startMap)
