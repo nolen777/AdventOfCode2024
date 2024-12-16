@@ -179,25 +179,24 @@ func recursiveTry(m Map, points int, previousTurnDirection rune) (int, Map, bool
 		clockwise := clockwiseTurn(m.direction)
 		counterClockwise := counterclockwiseTurn(m.direction)
 
-		// turn clockwise
-		m.direction = clockwise
-		clockwisePoints, clMap, success := recursiveTry(m, points+turnPoints, 1)
-		if success {
-			found = true
-			if clockwisePoints < lowestPoints {
-				bestMap = clMap
-				lowestPoints = clockwisePoints
+		tryTurn := func(dir rune) {
+			m.direction = dir
+			pts, clMap, success := recursiveTry(m, points+turnPoints, 1)
+			if success {
+				found = true
+				if pts < lowestPoints {
+					bestMap = clMap
+					lowestPoints = pts
+				}
 			}
 		}
-		// turn counterclockwise
-		m.direction = counterClockwise
-		counterClockwisePoints, ccMap, success := recursiveTry(m, points+turnPoints, 2)
-		if success {
-			found = true
-			if counterClockwisePoints < lowestPoints {
-				bestMap = ccMap
-				lowestPoints = counterClockwisePoints
-			}
+
+		if clockwise == North || clockwise == East {
+			tryTurn(clockwise)
+			tryTurn(counterClockwise)
+		} else {
+			tryTurn(counterClockwise)
+			tryTurn(clockwise)
 		}
 	}
 
