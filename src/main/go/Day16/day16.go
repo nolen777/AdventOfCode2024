@@ -192,7 +192,7 @@ func calcGrid(oneGrid [][]int, clock [][]int, counter [][]int, rowIndex int, col
 }
 
 // returns cost of End
-func progressiveFill(m Map) int {
+func progressiveFill(m Map) Map {
 	initialCost := MaxInt - turnPoints - forwardPoints
 
 	makeInitial := func() [][]int {
@@ -217,6 +217,7 @@ func progressiveFill(m Map) int {
 
 	minEndCost := initialCost
 
+	var endPosition Coords
 	changes := 1
 	// Go through every tile repeatedly. On each tile, see if we've identified
 	// a cheaper path to it
@@ -239,6 +240,8 @@ func progressiveFill(m Map) int {
 				changes += tileChanges
 
 				if tileChanges > 0 && b == End {
+					endPosition.row = rowIndex
+					endPosition.column = columnIndex
 					//fmt.Println("Arrived!")
 					minEndCost = min(
 						minEndCost,
@@ -250,14 +253,57 @@ func progressiveFill(m Map) int {
 				}
 			}
 		}
-		//fmt.Println("Changed ", changes, " tiles")
 	}
-	return minEndCost
+
+	return recursiveMarkSeats(endPosition, minEndCost, m, northFacing, eastFacing, southFacing, westFacing)
+}
+
+func recursiveMarkSeats(pos Coords, minCost int, m Map, nf [][]int, ef [][]int, sf [][]int, wf [][]int) Map {
+	if m.grid[pos.row][pos.column] == Wall {
+		return m
+	}
+
+	printMap(m)
+
+	if nf[pos.row][pos.column] == minCost {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	}
+	if ef[pos.row][pos.column] == minCost {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column - 1}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	}
+	if sf[pos.row][pos.column] == minCost {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row - 1, column: pos.column}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	}
+	if wf[pos.row][pos.column] == minCost {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column + 1}, minCost-forwardPoints, m, nf, ef, sf, wf)
+	}
+
+	if nf[pos.row][pos.column] == minCost-turnPoints {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row + 1, column: pos.column}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	}
+	if ef[pos.row][pos.column] == minCost-turnPoints {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column - 1}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	}
+	if sf[pos.row][pos.column] == minCost-turnPoints {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row - 1, column: pos.column}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	}
+	if wf[pos.row][pos.column] == minCost-turnPoints {
+		m.grid[pos.row][pos.column] = Seat
+		m = recursiveMarkSeats(Coords{row: pos.row, column: pos.column + 1}, minCost-turnPoints-forwardPoints, m, nf, ef, sf, wf)
+	}
+	return m
 }
 
 func part1() {
 	// Try spreading out costs
-	startMap := parseMap("resources/Day16/input.txt")
+	startMap := parseMap("resources/Day16/sample.txt")
 	printMap(startMap)
 
 	startMap = fillWalls(startMap)
@@ -265,16 +311,18 @@ func part1() {
 
 	startMap.grid[startMap.position.row][startMap.position.column] = Empty
 
-	progressiveFill(startMap)
+	filledMap := progressiveFill(startMap)
+	printMap(filledMap)
 
-	//	points, bestMap, success := recursiveTry(startMap, 0, 0)
-
-	//if success {
-	//	printMap(bestMap)
-	//	fmt.Println(points)
-	//} else {
-	//	fmt.Println("Failed!")
-	//}
+	seatCount := 0
+	for _, row := range filledMap.grid {
+		for _, b := range row {
+			if b == Seat {
+				seatCount++
+			}
+		}
+	}
+	fmt.Println("Seat count: ", seatCount)
 }
 
 func main() {
