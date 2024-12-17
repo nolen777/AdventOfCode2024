@@ -137,17 +137,18 @@ func advanceState(s State) State {
 		s.B = s.B ^ s.C
 
 	case out:
-		s.Output = append(s.Output, strconv.Itoa(combo(operand, s)%8))
+		outValue := combo(operand, s) % 8
+		s.Output = append(s.Output, strconv.Itoa(outValue))
 
 	case bdv:
 		numerator := s.A
-		denominator := 2 << combo(operand, s)
+		denominator := 1 << combo(operand, s)
 
 		s.B = numerator / denominator
 
 	case cdv:
 		numerator := s.A
-		denominator := 2 << combo(operand, s)
+		denominator := 1 << combo(operand, s)
 
 		s.C = numerator / denominator
 	}
@@ -156,7 +157,7 @@ func advanceState(s State) State {
 }
 
 func part1() {
-	state := parseInitialState("resources/Day17/sample.txt")
+	state := parseInitialState("resources/Day17/input.txt")
 	fmt.Println(state)
 
 	for state.InstructionPointer < len(state.Program) {
