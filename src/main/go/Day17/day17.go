@@ -169,9 +169,33 @@ func part1() {
 }
 
 func part2() {
+	initialState := parseInitialState("resources/Day17/small.txt")
 
+	progStrings := make([]string, 0, len(initialState.Program))
+	for _, p := range initialState.Program {
+		pI := strconv.Itoa(p)
+		progStrings = append(progStrings, pI)
+	}
+	progString := strings.Join(progStrings, ",")
+	fmt.Println(progString)
+
+	for i := 0; ; i++ {
+		state := initialState
+		state.A = i
+
+		for state.InstructionPointer < len(state.Program) {
+			state = advanceState(state)
+		}
+		output := strings.Join(state.Output, ",")
+
+		if output == progString {
+			fmt.Println("Found it with ", i)
+			break
+		}
+	}
 }
 
 func main() {
-	part1()
+	//	part1()
+	part2()
 }
