@@ -1,0 +1,29 @@
+Register A: 46187030
+Register B: 0
+Register C: 0
+
+Program: 
+2,4, B = A mod 8   0 1 2 3 4 5 6 7
+1,5, B = B ^ 5     5 4 7 6 1 0 3 2
+7,5, C = A >> B	2199023255552
+0,3, A = A / 8
+4,0, B = B ^ C  1 mod 8
+1,6, B = B ^ 6  6 mod 8
+5,5, output B % 8 0 mod 8
+3,0 jump to 0 unless A is 0
+
+
+A=6,B=6,C=0
+from back:
+A = 0 to 7, result 0, B = 0 mod 8
+A = 8 to 56, result 3, B = 3 mod 8
+8^16
+
+
+
+
+
+ends A 0
+B is 0 mod 8
+	3 mod 8
+	

@@ -21,10 +21,10 @@ const (
 )
 
 type State struct {
-	A                  int
-	B                  int
-	C                  int
-	Program            []int
+	A                  int64
+	B                  int64
+	C                  int64
+	Program            []byte
 	InstructionPointer int
 	Output             []string
 }
@@ -47,21 +47,21 @@ func parseInitialState(fileName string) State {
 		}
 
 		if strings.HasPrefix(line, "Register A: ") {
-			a, err := strconv.Atoi(line[len("Register A: "):])
+			a, err := strconv.ParseInt(line[len("Register A: "):], 10, 64)
 			if err != nil {
 				log.Fatal(err)
 			}
 			state.A = a
 		}
 		if strings.HasPrefix(line, "Register B: ") {
-			b, err := strconv.Atoi(line[len("Register B: "):])
+			b, err := strconv.ParseInt(line[len("Register B: "):], 10, 64)
 			if err != nil {
 				log.Fatal(err)
 			}
 			state.B = b
 		}
 		if strings.HasPrefix(line, "Register C: ") {
-			c, err := strconv.Atoi(line[len("Register C: "):])
+			c, err := strconv.ParseInt(line[len("Register C: "):], 10, 64)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -69,13 +69,13 @@ func parseInitialState(fileName string) State {
 		}
 		if strings.HasPrefix(line, "Program: ") {
 			codes := strings.Split(line[len("Program: "):], ",")
-			state.Program = make([]int, 0, len(codes))
+			state.Program = make([]byte, 0, len(codes))
 			for _, code := range codes {
-				c, err := strconv.Atoi(code)
+				c, err := strconv.ParseInt(code, 10, 8)
 				if err != nil {
 					log.Fatal(err)
 				}
-				state.Program = append(state.Program, c)
+				state.Program = append(state.Program, byte(c))
 			}
 		}
 	}
@@ -85,7 +85,7 @@ func parseInitialState(fileName string) State {
 	return state
 }
 
-func combo(value int, s State) int {
+func makeCombo(value byte, s State) int64 {
 	switch value {
 	case 0:
 		return 0
@@ -113,44 +113,38 @@ func advanceState(s State) State {
 	inst := s.Program[s.InstructionPointer]
 	operand := s.Program[s.InstructionPointer+1]
 
+	literal := int64(operand)
+	combo := makeCombo(operand, s)
+
 	s.InstructionPointer += 2
 
 	switch inst {
 	case adv:
-		numerator := s.A
-		denominator := 1 << combo(operand, s)
-
-		s.A = numerator / denominator
+		s.A = s.A >> combo
 
 	case bxl:
-		s.B = s.B ^ operand
+		s.B = s.B ^ literal
 
 	case bst:
-		s.B = combo(operand, s) % 8
+		s.B = combo % 8
 
 	case jnz:
 		if s.A != 0 {
-			s.InstructionPointer = operand
+			s.InstructionPointer = int(literal)
 		}
 
 	case bxc:
 		s.B = s.B ^ s.C
 
 	case out:
-		outValue := combo(operand, s) % 8
+		outValue := int(combo % 8)
 		s.Output = append(s.Output, strconv.Itoa(outValue))
 
 	case bdv:
-		numerator := s.A
-		denominator := 1 << combo(operand, s)
-
-		s.B = numerator / denominator
+		s.B = s.A >> combo
 
 	case cdv:
-		numerator := s.A
-		denominator := 1 << combo(operand, s)
-
-		s.C = numerator / denominator
+		s.C = s.A >> combo
 	}
 
 	return s
@@ -169,33 +163,51 @@ func part1() {
 }
 
 func part2() {
-	initialState := parseInitialState("resources/Day17/small.txt")
+	initialState := parseInitialState("resources/Day17/input.txt")
 
 	progStrings := make([]string, 0, len(initialState.Program))
 	for _, p := range initialState.Program {
-		pI := strconv.Itoa(p)
+		pI := strconv.Itoa(int(p))
 		progStrings = append(progStrings, pI)
 	}
 	progString := strings.Join(progStrings, ",")
+	fmt.Println("Desired:")
 	fmt.Println(progString)
 
-	for i := 0; ; i++ {
-		state := initialState
-		state.A = i
+	// The strategy here is basically:
+	//		For this program, A only ever changes by shifting right by 3, and B and C effectively
+	//		don't carry over from one iteration to the next; they're set entirely by the value
+	//		of A. And because of the mod 8 in the output, only the last three bits of A matter.
+	//		(not sure that's totally true because of the bitshift by 5 on C, but it worked...)
+	//		So we can look for the output backwards, one entry at a time, and shift A up by 3
+	//		each iteration.
+	outputString := ""
+	var a int64 = 0
+	for outputString != progString {
+		// Each pass through shifts A right by 3
+		a = a << 3
+		for i := int64(0); ; i++ {
+			state := initialState
+			state.A = a | i
 
-		for state.InstructionPointer < len(state.Program) {
-			state = advanceState(state)
-		}
-		output := strings.Join(state.Output, ",")
+			for state.InstructionPointer < len(state.Program) {
+				state = advanceState(state)
+			}
+			outputString = strings.Join(state.Output, ",")
 
-		if output == progString {
-			fmt.Println("Found it with ", i)
-			break
+			if strings.HasSuffix(progString, outputString) {
+				fmt.Println("Found it with ", i)
+				a = a | i
+				fmt.Println(outputString)
+				break
+			}
 		}
 	}
+
+	fmt.Println("initial A should be ", a)
 }
 
 func main() {
-	//	part1()
+	part1()
 	part2()
 }
