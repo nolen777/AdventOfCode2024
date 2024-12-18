@@ -132,22 +132,68 @@ func CalculateCosts(from Coords, m Maze) [][]int {
 	return costs
 }
 
+//func BestRoute(to Coords, m Maze, costs [][]int) Maze {
+//	routeMaze := make([][]rune, 0, len(m))
+//	for _, r := range m {
+//		routeMaze = append(routeMaze, slices.Clone(r))
+//	}
+//
+//	pos := to
+//	for costs[pos.x][pos.y] > 0 {
+//		routeMaze[pos.x][pos.y] = Path
+//
+//	}
+//}
+
 func part1() {
-	coords := parseCoords("resources/Day18/sample.txt")
+	coords := parseCoords("resources/Day18/input.txt")
+	corruptionCount := 1024
+	size := 71
 	fmt.Println(coords)
 
-	maze := SetupMaze(7, coords[:12])
+	maze := SetupMaze(size, coords[:corruptionCount])
 	PrintMaze(maze)
 
 	costs := CalculateCosts(Coords{x: 0, y: 0}, maze)
-	fmt.Println("Steps: ", costs[6][6])
+	fmt.Println("Steps: ", costs[size-1][size-1])
 }
 
 func part2() {
-	lines := parseCoords("resources/Day18/sample.txt")
-	_ = lines
+	coords := parseCoords("resources/Day18/sample.txt")
+	//corruptionCount := 1024
+	size := 7
+	fmt.Println(coords)
+
+	low := 0
+	high := len(coords)
+
+	for low+1 < high {
+		count := (low + high) / 2
+		maze := SetupMaze(size, coords[:count])
+
+		costs := CalculateCosts(Coords{x: 0, y: 0}, maze)
+		endCost := costs[size-1][size-1]
+		if endCost < MaxInt {
+			fmt.Println("Success!")
+			low = count
+		} else {
+			fmt.Println("Failed!")
+			high = count
+		}
+	}
+
+	maze := SetupMaze(size, coords[:low])
+	PrintMaze(maze)
+	costs := CalculateCosts(Coords{x: 0, y: 0}, maze)
+	endCost := costs[size-1][size-1]
+	_ = endCost
+
+	fmt.Println("Index: ", low)
+	fmt.Println("Coords: ", coords[low])
+
 }
 
 func main() {
-	part1()
+	//	part1()
+	part2()
 }
