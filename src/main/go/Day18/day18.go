@@ -159,9 +159,9 @@ func part1() {
 }
 
 func part2() {
-	coords := parseCoords("resources/Day18/sample.txt")
+	coords := parseCoords("resources/Day18/input.txt")
 	//corruptionCount := 1024
-	size := 7
+	size := 71
 	fmt.Println(coords)
 
 	low := 0
