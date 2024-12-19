@@ -40,47 +40,6 @@ func parseTowelsAndPatterns(fileName string) ([]string, []string) {
 	return towels, patterns
 }
 
-func recursiveFindTowelsForPattern(allTowels map[string]bool, pattern string, usedTowels []string) ([]string, bool) {
-	if pattern == "" {
-		return usedTowels, true
-	}
-
-	for i := min(len(pattern), 8); i > 0; i-- {
-		//	for i := 1; i <= len(pattern); i++ {
-		substr := pattern[:i]
-		if allTowels[substr] {
-			usedTowels = append(usedTowels, substr)
-
-			result, ok := recursiveFindTowelsForPattern(allTowels, pattern[i:], usedTowels)
-
-			if ok {
-				return result, true
-			} else {
-				usedTowels = usedTowels[:len(usedTowels)-1]
-			}
-		}
-	}
-
-	return usedTowels, false
-}
-
-func index(color rune) int {
-	switch color {
-	case 'w':
-		return 0
-	case 'u':
-		return 1
-	case 'b':
-		return 2
-	case 'r':
-		return 3
-	case 'g':
-		return 4
-	}
-	log.Fatal("Unknown color", color)
-	return -1
-}
-
 func makeTowelSet(towels []string) map[string]bool {
 	m := make(map[string]bool, len(towels))
 	for _, t1 := range towels {
@@ -90,36 +49,6 @@ func makeTowelSet(towels []string) map[string]bool {
 		//}
 	}
 	return m
-}
-
-func findChars(c rune, allTowels map[string]bool, pattern string) bool {
-	i := 0
-	for i < len(pattern) {
-		l := rune(pattern[i])
-		found := false
-		if l != c {
-			i++
-			continue
-		}
-		//outer:
-		// start 7 steps behind
-		for j := max(0, i-7); j <= i; j++ {
-			for sz := min(8, len(pattern)-j); sz >= i-j+1; sz-- {
-				//	for sz := i - j + 1; sz <= min(8, len(pattern)-j); sz++ {
-				toFind := pattern[j : j+sz]
-				if allTowels[toFind] {
-					newPattern := pattern[j+sz:]
-					if findChars(c, allTowels, newPattern) {
-						return true
-					}
-				}
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
 }
 
 func part1() {
