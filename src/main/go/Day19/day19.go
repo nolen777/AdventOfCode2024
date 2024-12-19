@@ -92,22 +92,63 @@ func makeTowelSet(towels []string) map[string]bool {
 	return m
 }
 
+func findChars(c rune, allTowels map[string]bool, pattern string) bool {
+	i := 0
+	for i < len(pattern) {
+		l := rune(pattern[i])
+		found := false
+		if l != c {
+			i++
+			continue
+		}
+		//outer:
+		// start 7 steps behind
+		for j := max(0, i-7); j <= i; j++ {
+			for sz := min(8, len(pattern)-j); sz >= i-j+1; sz-- {
+				//	for sz := i - j + 1; sz <= min(8, len(pattern)-j); sz++ {
+				toFind := pattern[j : j+sz]
+				if allTowels[toFind] {
+					newPattern := pattern[j+sz:]
+					if findChars(c, allTowels, newPattern) {
+						return true
+					}
+				}
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 func part1() {
-	towels, patterns := parseTowelsAndPatterns("resources/Day19/sample.txt")
+	towels, patterns := parseTowelsAndPatterns("resources/Day19/input.txt")
 
 	towelSet := makeTowelSet(towels)
 	fmt.Println("Towel set size: ", len(towelSet))
-	//	towelTree := makeTowelTree(towels)
+
+	singleChars := []rune{'w', 'u', 'b', 'r', 'g'}
+	absentSingleChars := []rune{}
+	for _, c := range singleChars {
+		if !towelSet[string(c)] {
+			absentSingleChars = append(absentSingleChars, c)
+		}
+	}
 
 	successCount := 0
 	for _, pattern := range patterns {
-		usedTowels, ok := recursiveFindTowelsForPattern(towelSet, pattern, []string{})
-
+		ok := true
+		for _, psc := range absentSingleChars {
+			if !findChars(psc, towelSet, pattern) {
+				fmt.Println(pattern, "is impossible for", string(psc))
+				ok = false
+				break
+			}
+		}
 		if ok {
 			successCount++
-			fmt.Println("Success for ", pattern, " with ", usedTowels)
-		} else {
-			fmt.Println(pattern, " is impossible")
+			fmt.Println(pattern, "found!")
 		}
 	}
 
