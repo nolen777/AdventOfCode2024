@@ -128,39 +128,79 @@ func part1() {
 	towelSet := makeTowelSet(towels)
 	fmt.Println("Towel set size: ", len(towelSet))
 
-	singleChars := []rune{'w', 'u', 'b', 'r', 'g'}
-	absentSingleChars := []rune{}
-	for _, c := range singleChars {
-		if !towelSet[string(c)] {
-			absentSingleChars = append(absentSingleChars, c)
-		}
-	}
-
 	successCount := 0
 	for _, pattern := range patterns {
-		ok := true
-		for _, psc := range absentSingleChars {
-			if !findChars(psc, towelSet, pattern) {
-				fmt.Println(pattern, "is impossible for", string(psc))
-				ok = false
-				break
-			}
-		}
-		if ok {
+		ct := calcCounts(towelSet, pattern)
+		fmt.Println(pattern, ct)
+		if ct > 0 {
 			successCount++
-			fmt.Println(pattern, "found!")
 		}
 	}
+	fmt.Println("Total count:", successCount)
 
-	fmt.Println("Success count: ", successCount)
+	// *** my original, horrible solution
+	//singleChars := []rune{'w', 'u', 'b', 'r', 'g'}
+	//absentSingleChars := []rune{}
+	//for _, c := range singleChars {
+	//	if !towelSet[string(c)] {
+	//		absentSingleChars = append(absentSingleChars, c)
+	//	}
+	//}
+	//
+	//successCount := 0
+	//for _, pattern := range patterns {
+	//	ok := true
+	//	for _, psc := range absentSingleChars {
+	//		if !findChars(psc, towelSet, pattern) {
+	//			fmt.Println(pattern, "is impossible for", string(psc))
+	//			ok = false
+	//			break
+	//		}
+	//	}
+	//	if ok {
+	//		successCount++
+	//		fmt.Println(pattern, "found!")
+	//	}
+	//}
+	//
+	//fmt.Println("Success count: ", successCount)
+}
+
+var counts = map[string]int{"": 1}
+
+func calcCounts(towelSet map[string]bool, pattern string) int {
+	if ct, ok := counts[pattern]; ok {
+		return ct
+	}
+
+	newCount := 0
+	for sz := 1; sz <= len(pattern); sz++ {
+		pre := pattern[:sz]
+
+		if towelSet[pre] {
+			suf := pattern[sz:]
+			newCount += calcCounts(towelSet, suf)
+		}
+	}
+	counts[pattern] = newCount
+	return newCount
 }
 
 func part2() {
-	towels, patterns := parseTowelsAndPatterns("resources/Day19/sample.txt")
-	_ = towels
-	_ = patterns
+	towels, patterns := parseTowelsAndPatterns("resources/Day19/input.txt")
+
+	towelSet := makeTowelSet(towels)
+	fmt.Println("Towel set size: ", len(towelSet))
+
+	totalCount := 0
+	for _, pattern := range patterns {
+		ct := calcCounts(towelSet, pattern)
+		fmt.Println(pattern, ct)
+		totalCount += ct
+	}
+	fmt.Println("Total count:", totalCount)
 }
 
 func main() {
-	part1()
+	part2()
 }
