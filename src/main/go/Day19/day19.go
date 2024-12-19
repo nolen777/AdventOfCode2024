@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -24,6 +23,12 @@ func parseTowelsAndPatterns(fileName string) ([]string, []string) {
 	line := scanner.Text()
 	towels := strings.Split(line, ", ")
 
+	maxTowelLength := 0
+	for _, t := range towels {
+		maxTowelLength = max(maxTowelLength, len(t))
+	}
+	fmt.Println("Max towel length: ", maxTowelLength)
+
 	scanner.Scan()
 	line = scanner.Text()
 
@@ -35,38 +40,23 @@ func parseTowelsAndPatterns(fileName string) ([]string, []string) {
 	return towels, patterns
 }
 
-type TowelTree struct {
-	present bool
-
-	sub [5]*TowelTree
-}
-
-func (tt TowelTree) contains(t string) bool {
-	if t == "" {
-		return tt.present
-	}
-	sub := tt.sub[index(rune(t[0]))]
-	if sub == nil {
-		return false
-	}
-	return sub.contains(t[1:])
-}
-
-func recursiveFindTowelsForPattern(allTowels TowelTree, pattern string, usedTowels []string) ([]string, bool) {
+func recursiveFindTowelsForPattern(allTowels map[string]bool, pattern string, usedTowels []string) ([]string, bool) {
 	if pattern == "" {
 		return usedTowels, true
 	}
 
-	for i := 1; i <= len(pattern); i++ {
+	for i := min(len(pattern), 8); i > 0; i-- {
+		//	for i := 1; i <= len(pattern); i++ {
 		substr := pattern[:i]
-		if allTowels.contains(substr) {
-			newUsed := slices.Clone(usedTowels)
-			newUsed = append(newUsed, substr)
+		if allTowels[substr] {
+			usedTowels = append(usedTowels, substr)
 
-			result, ok := recursiveFindTowelsForPattern(allTowels, pattern[i:], newUsed)
+			result, ok := recursiveFindTowelsForPattern(allTowels, pattern[i:], usedTowels)
 
 			if ok {
 				return result, true
+			} else {
+				usedTowels = usedTowels[:len(usedTowels)-1]
 			}
 		}
 	}
@@ -91,33 +81,27 @@ func index(color rune) int {
 	return -1
 }
 
-func makeTowelTree(towels []string) TowelTree {
-	root := TowelTree{present: false}
-
-	for _, towel := range towels {
-		tt := &root
-
-		for _, r := range towel {
-			idx := index(r)
-
-			if tt.sub[idx] == nil {
-				tt.sub[idx] = &TowelTree{}
-			}
-			tt = tt.sub[idx]
-		}
-		tt.present = true
+func makeTowelSet(towels []string) map[string]bool {
+	m := make(map[string]bool, len(towels))
+	for _, t1 := range towels {
+		m[t1] = true
+		//for _, t2 := range towels {
+		//	m[t1+t2] = true
+		//}
 	}
-	return root
+	return m
 }
 
 func part1() {
 	towels, patterns := parseTowelsAndPatterns("resources/Day19/sample.txt")
 
-	towelTree := makeTowelTree(towels)
+	towelSet := makeTowelSet(towels)
+	fmt.Println("Towel set size: ", len(towelSet))
+	//	towelTree := makeTowelTree(towels)
 
 	successCount := 0
 	for _, pattern := range patterns {
-		usedTowels, ok := recursiveFindTowelsForPattern(towelTree, pattern, []string{})
+		usedTowels, ok := recursiveFindTowelsForPattern(towelSet, pattern, []string{})
 
 		if ok {
 			successCount++
