@@ -178,34 +178,22 @@ func naiveSearch(m [][]rune, costs [][]int, start Coords, end Coords) map[int][]
 			}
 
 			checkOneDir := func(rd int, cd int) {
-				if m[rowIndex+rd][colIndex+cd] == Wall || m[rowIndex+2*rd][colIndex+2*cd] == Wall {
-					// First see if we can jump directly to exit
-					if rowIndex+2*rd == end.row && colIndex+2*cd == end.column {
-						newCost := costs[rowIndex][colIndex] + 2
-						savings := initialCost - newCost
-						if savings > 0 {
-							fmt.Println("Found one going ", rd, cd, ", directly to the end!, that saved ", savings)
-							fmt.Println(rowIndex, colIndex)
-							savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
-						}
-						return
-					}
-
-					// Otherwise, need to be going to a valid empty space 3 away
+				if m[rowIndex+rd][colIndex+cd] == Wall {
+					// Otherwise, need to be going to a valid empty space 2 away
 					if !isValid(rowIndex+2*rd, colIndex+2*cd) {
 						return
 					}
-					if m[rowIndex+3*rd][colIndex+3*cd] == Wall {
+					if m[rowIndex+2*rd][colIndex+2*cd] == Wall {
 						return
 					}
-					currentCostToEnd := costs[rowIndex+3*rd][colIndex+3*cd]
-					// Costs 3 to jump, so don't bother if we wouldn't save that
-					if currentCostToEnd <= 3+tileCost {
+					currentCostToEnd := costs[rowIndex+2*rd][colIndex+2*cd]
+					// Costs 2 to jump, so don't bother if we wouldn't save that
+					if currentCostToEnd <= 2+tileCost {
 						return
 					}
 
 					cc := copyCosts(costs)
-					cc[rowIndex+3*rd][colIndex+3*cd] = tileCost + 3
+					cc[rowIndex+2*rd][colIndex+2*cd] = tileCost + 2
 					UpdateCosts(m, cc)
 
 					newCost := cc[end.row][end.column]
