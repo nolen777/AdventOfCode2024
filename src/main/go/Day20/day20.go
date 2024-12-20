@@ -159,51 +159,48 @@ func abs(x int) int {
 }
 
 func naiveSearch(m [][]rune, sortedCosts []TileCost, rawCosts [][]int, start Coords, minSavings int) map[int][]Coords {
-	//rowCount := len(m)
-	//columnCount := len(m[0])
-
 	initialCost := rawCosts[start.row][start.column]
 
 	savingsCount := map[int][]Coords{}
 
 	maxDiff := 2
 
-	for rowIndex, row := range rawCosts {
-		for colIndex, rawCost := range row {
-			if m[rowIndex][colIndex] == Wall {
+	for highCostIdx := len(sortedCosts) - 1; highCostIdx >= 0; highCostIdx-- {
+		fmt.Println("High cost index: ", highCostIdx, len(savingsCount))
+		highCost := sortedCosts[highCostIdx]
+
+		rowIndex := highCost.row
+		colIndex := highCost.column
+
+		for _, tileCost := range sortedCosts[:highCostIdx] {
+			dist := abs(rowIndex-tileCost.row) + abs(colIndex-tileCost.column)
+
+			savings := highCost.cost - (tileCost.cost + dist)
+
+			// since we're sorted, we can early-exit
+			if savings < minSavings {
+				break
+			}
+
+			if dist < 2 {
 				continue
 			}
 
-			for _, tileCost := range sortedCosts {
-				dist := abs(rowIndex-tileCost.row) + abs(colIndex-tileCost.column)
+			// right now only in straight lines
+			if rowIndex != tileCost.row && colIndex != tileCost.column {
+				continue
+			}
+			if dist > maxDiff {
+				continue
+			}
+			cc := copyCosts(rawCosts)
+			cc[rowIndex][colIndex] = tileCost.cost + dist
+			UpdateCosts(m, cc)
 
-				savings := rawCost - (tileCost.cost + dist)
-
-				// since we're sorted, we can early-exit
-				if savings <= 0 {
-					break
-				}
-
-				if dist < 2 {
-					continue
-				}
-
-				// right now only in straight lines
-				if rowIndex != tileCost.row && colIndex != tileCost.column {
-					continue
-				}
-				if dist > maxDiff {
-					continue
-				}
-				cc := copyCosts(rawCosts)
-				cc[rowIndex][colIndex] = tileCost.cost + dist
-				UpdateCosts(m, cc)
-
-				newCost := cc[start.row][start.column]
-				finalSavings := initialCost - newCost
-				if finalSavings > 0 {
-					savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
-				}
+			newCost := cc[start.row][start.column]
+			finalSavings := initialCost - newCost
+			if finalSavings > 0 {
+				savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
 			}
 		}
 	}
@@ -211,14 +208,9 @@ func naiveSearch(m [][]rune, sortedCosts []TileCost, rawCosts [][]int, start Coo
 	return savingsCount
 }
 
-func part1() {
-	m, start, end := parseMap("resources/Day20/sample.txt")
-	printMap(m)
-	fmt.Println(start)
-	fmt.Println(end)
+func sortedTileCosts(rawCosts [][]int) []TileCost {
+	tileCosts := make([]TileCost, 0, len(rawCosts)*len(rawCosts[0]))
 
-	rawCosts := CalculateCosts(end, m)
-	tileCosts := make([]TileCost, 0, len(m)*len(m[0]))
 	for rowIndex, row := range rawCosts {
 		for colIndex, c := range row {
 			if c == MaxInt {
@@ -227,17 +219,33 @@ func part1() {
 			tileCosts = append(tileCosts, TileCost{row: rowIndex, column: colIndex, cost: c})
 		}
 	}
+
 	slices.SortFunc(tileCosts, func(a TileCost, b TileCost) int {
 		return a.cost - b.cost
 	})
+	return tileCosts
+}
 
-	fmt.Println("cost to end: ", rawCosts[start.row][start.column])
+func part1() {
+	m, start, end := parseMap("resources/Day20/sample.txt")
+	printMap(m)
+	fmt.Println(start)
+	fmt.Println(end)
 
-	savingsCount := naiveSearch(m, tileCosts, rawCosts, start, 1)
+	//rawCostsToStart := CalculateCosts(start, m)
+	rawCostsToEnd := CalculateCosts(end, m)
+	sortedTileCostsToEnd := sortedTileCosts(rawCostsToEnd)
 
+	fmt.Println("cost to end: ", rawCostsToEnd[start.row][start.column])
+
+	savingsCount := naiveSearch(m, sortedTileCostsToEnd, rawCostsToEnd, start, 1)
+
+	cheatCount := 0
 	for sav, coords := range savingsCount {
 		fmt.Println(sav, ": ", len(coords), coords)
+		cheatCount += len(coords)
 	}
+	fmt.Println("Total cheats: ", cheatCount)
 }
 
 func part2() {
