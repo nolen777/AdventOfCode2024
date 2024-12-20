@@ -145,58 +145,66 @@ func copyCosts(c [][]int) [][]int {
 	return cc
 }
 
-func naiveSearch(m [][]rune, costs [][]int, start Coords) map[int][]Coords {
-	rowCount := len(m)
-	columnCount := len(m[0])
+type TileCost struct {
+	row    int
+	column int
+	cost   int
+}
 
-	initialCost := costs[start.row][start.column]
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func naiveSearch(m [][]rune, sortedCosts []TileCost, rawCosts [][]int, start Coords, minSavings int) map[int][]Coords {
+	//rowCount := len(m)
+	//columnCount := len(m[0])
+
+	initialCost := rawCosts[start.row][start.column]
 
 	savingsCount := map[int][]Coords{}
 
-	isValid := func(r int, c int) bool {
-		return r >= 0 && c >= 0 && r < rowCount && c < columnCount
-	}
+	maxDiff := 2
 
-	for rowIndex, row := range costs {
-		for colIndex, tileCost := range row {
-			if tileCost == MaxInt {
+	for rowIndex, row := range rawCosts {
+		for colIndex, rawCost := range row {
+			if m[rowIndex][colIndex] == Wall {
 				continue
 			}
 
-			checkOneDir := func(rd int, cd int) {
-				if m[rowIndex+rd][colIndex+cd] == Wall {
-					// Otherwise, need to be going to a valid empty space 2 away
-					if !isValid(rowIndex+2*rd, colIndex+2*cd) {
-						return
-					}
-					if m[rowIndex+2*rd][colIndex+2*cd] == Wall {
-						return
-					}
-					currentCostToEnd := costs[rowIndex+2*rd][colIndex+2*cd]
-					// Costs 2 to jump, so don't bother if we wouldn't save that
-					if currentCostToEnd <= 2+tileCost {
-						return
-					}
+			for _, tileCost := range sortedCosts {
+				dist := abs(rowIndex-tileCost.row) + abs(colIndex-tileCost.column)
 
-					cc := copyCosts(costs)
-					cc[rowIndex+2*rd][colIndex+2*cd] = tileCost + 2
-					UpdateCosts(m, cc)
+				savings := rawCost - (tileCost.cost + dist)
 
-					newCost := cc[start.row][start.column]
-					savings := initialCost - newCost
-					if savings > 0 {
-						fmt.Println("Found one going ", rd, cd, " that saved ", savings)
-						fmt.Println(rowIndex, colIndex)
-						savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
-					}
+				// since we're sorted, we can early-exit
+				if savings <= 0 {
+					break
+				}
+
+				if dist < 2 {
+					continue
+				}
+
+				// right now only in straight lines
+				if rowIndex != tileCost.row && colIndex != tileCost.column {
+					continue
+				}
+				if dist > maxDiff {
+					continue
+				}
+				cc := copyCosts(rawCosts)
+				cc[rowIndex][colIndex] = tileCost.cost + dist
+				UpdateCosts(m, cc)
+
+				newCost := cc[start.row][start.column]
+				finalSavings := initialCost - newCost
+				if finalSavings > 0 {
+					savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
 				}
 			}
-
-			// up
-			checkOneDir(-1, 0)
-			checkOneDir(0, -1)
-			checkOneDir(1, 0)
-			checkOneDir(0, 1)
 		}
 	}
 
@@ -209,10 +217,23 @@ func part1() {
 	fmt.Println(start)
 	fmt.Println(end)
 
-	costs := CalculateCosts(end, m)
-	fmt.Println("cost to end: ", costs[start.row][start.column])
+	rawCosts := CalculateCosts(end, m)
+	tileCosts := make([]TileCost, 0, len(m)*len(m[0]))
+	for rowIndex, row := range rawCosts {
+		for colIndex, c := range row {
+			if c == MaxInt {
+				continue
+			}
+			tileCosts = append(tileCosts, TileCost{row: rowIndex, column: colIndex, cost: c})
+		}
+	}
+	slices.SortFunc(tileCosts, func(a TileCost, b TileCost) int {
+		return a.cost - b.cost
+	})
 
-	savingsCount := naiveSearch(m, costs, start)
+	fmt.Println("cost to end: ", rawCosts[start.row][start.column])
+
+	savingsCount := naiveSearch(m, tileCosts, rawCosts, start, 1)
 
 	for sav, coords := range savingsCount {
 		fmt.Println(sav, ": ", len(coords), coords)
