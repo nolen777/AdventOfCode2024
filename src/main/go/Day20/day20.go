@@ -83,10 +83,10 @@ func CalculateCosts(from Coords, m [][]rune) [][]int {
 
 	costs[from.row][from.column] = 0
 
-	return UpdateCosts(m, costs)
+	return UpdateCosts(m, costs, nil)
 }
 
-func UpdateCosts(m [][]rune, costs [][]int) [][]int {
+func UpdateCosts(m [][]rune, costs [][]int, shouldExit func(int, int) bool) [][]int {
 	rowCount := len(costs)
 	columnCount := len(costs[0])
 
@@ -109,24 +109,36 @@ func UpdateCosts(m [][]rune, costs [][]int) [][]int {
 					if costs[rowIndex-1][colIndex] < MaxInt && costs[rowIndex-1][colIndex]+1 < costs[rowIndex][colIndex] {
 						changes++
 						costs[rowIndex][colIndex] = costs[rowIndex-1][colIndex] + 1
+						if shouldExit != nil && shouldExit(rowIndex, colIndex) {
+							return costs
+						}
 					}
 				}
 				if isValid(rowIndex+1, colIndex) {
 					if costs[rowIndex+1][colIndex] < MaxInt && costs[rowIndex+1][colIndex]+1 < costs[rowIndex][colIndex] {
 						changes++
 						costs[rowIndex][colIndex] = costs[rowIndex+1][colIndex] + 1
+						if shouldExit != nil && shouldExit(rowIndex, colIndex) {
+							return costs
+						}
 					}
 				}
 				if isValid(rowIndex, colIndex-1) {
 					if costs[rowIndex][colIndex-1] < MaxInt && costs[rowIndex][colIndex-1]+1 < costs[rowIndex][colIndex] {
 						changes++
 						costs[rowIndex][colIndex] = costs[rowIndex][colIndex-1] + 1
+						if shouldExit != nil && shouldExit(rowIndex, colIndex) {
+							return costs
+						}
 					}
 				}
 				if isValid(rowIndex, colIndex+1) {
 					if costs[rowIndex][colIndex+1] < MaxInt && costs[rowIndex][colIndex+1]+1 < costs[rowIndex][colIndex] {
 						changes++
 						costs[rowIndex][colIndex] = costs[rowIndex][colIndex+1] + 1
+						if shouldExit != nil && shouldExit(rowIndex, colIndex) {
+							return costs
+						}
 					}
 				}
 			}
@@ -134,20 +146,6 @@ func UpdateCosts(m [][]rune, costs [][]int) [][]int {
 	}
 
 	return costs
-}
-
-type CheatPair struct {
-	start Coords
-	end   Coords
-}
-
-func copyMap(m [][]rune) [][]rune {
-	mc := make([][]rune, 0, len(m))
-
-	for _, row := range m {
-		mc = append(mc, slices.Clone(row))
-	}
-	return mc
 }
 
 func copyCosts(c [][]int) [][]int {
@@ -159,7 +157,7 @@ func copyCosts(c [][]int) [][]int {
 	return cc
 }
 
-func naiveSearch(m [][]rune, costs [][]int, start Coords, end Coords) map[int][]Coords {
+func naiveSearch(m [][]rune, costs [][]int, end Coords, maxCheatLength int, minSavings int) map[int][]Coords {
 	rowCount := len(m)
 	columnCount := len(m[0])
 
@@ -171,46 +169,46 @@ func naiveSearch(m [][]rune, costs [][]int, start Coords, end Coords) map[int][]
 		return r >= 0 && c >= 0 && r < rowCount && c < columnCount
 	}
 
-	for rowIndex, row := range costs {
-		for colIndex, tileCost := range row {
+	for cheatStartRow, row := range costs {
+		fmt.Println("Starting row ", cheatStartRow, " of ", rowCount)
+		for cheatStartColumn, tileCost := range row {
 			if tileCost == MaxInt {
 				continue
 			}
 
-			checkOneDir := func(rd int, cd int) {
-				if m[rowIndex+rd][colIndex+cd] == Wall {
-					// Otherwise, need to be going to a valid empty space 2 away
-					if !isValid(rowIndex+2*rd, colIndex+2*cd) {
-						return
+			for rd := 0; rd <= maxCheatLength; rd++ {
+				if !isValid(cheatStartRow+rd, cheatStartColumn) {
+					continue
+				}
+				for cd := 0; cd <= maxCheatLength-rd; cd++ {
+					if rd == 0 && cd == 0 {
+						continue
 					}
-					if m[rowIndex+2*rd][colIndex+2*cd] == Wall {
-						return
+					if !isValid(cheatStartRow+rd, cheatStartColumn+cd) {
+						continue
 					}
-					currentCostToEnd := costs[rowIndex+2*rd][colIndex+2*cd]
-					// Costs 2 to jump, so don't bother if we wouldn't save that
-					if currentCostToEnd <= 2+tileCost {
-						return
+					if m[cheatStartRow+rd][cheatStartColumn+cd] == Wall {
+						continue
+					}
+					currentCostToEnd := costs[cheatStartRow+rd][cheatStartColumn+cd]
+					// don't bother if we wouldn't save the cost to cheat
+					if currentCostToEnd <= tileCost+rd+cd {
+						continue
 					}
 
 					cc := copyCosts(costs)
-					cc[rowIndex+2*rd][colIndex+2*cd] = tileCost + 2
-					UpdateCosts(m, cc)
+					cc[cheatStartRow+rd][cheatStartColumn+cd] = tileCost + rd + cd
+					UpdateCosts(m, cc, func(r int, c int) bool {
+						return initialCost-cc[end.row][end.column] >= minSavings
+					})
 
 					newCost := cc[end.row][end.column]
 					savings := initialCost - newCost
-					if savings > 0 {
-						fmt.Println("Found one going ", rd, cd, " that saved ", savings)
-						fmt.Println(rowIndex, colIndex)
-						savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
+					if savings >= minSavings {
+						savingsCount[savings] = append(savingsCount[savings], Coords{cheatStartRow, cheatStartColumn})
 					}
 				}
 			}
-
-			// up
-			checkOneDir(-1, 0)
-			checkOneDir(0, -1)
-			checkOneDir(1, 0)
-			checkOneDir(0, 1)
 		}
 	}
 
@@ -218,6 +216,26 @@ func naiveSearch(m [][]rune, costs [][]int, start Coords, end Coords) map[int][]
 }
 
 func part1() {
+	m, start, end := parseMap("resources/Day20/input.txt")
+	printMap(m)
+	fmt.Println(start)
+	fmt.Println(end)
+
+	costs := CalculateCosts(start, m)
+	fmt.Println("cost to end: ", costs[end.row][end.column])
+
+	savingsCount := naiveSearch(m, costs, end, 2, 100)
+
+	totalCheats := 0
+	for sav, coords := range savingsCount {
+		fmt.Println(sav, ": ", len(coords), coords)
+		totalCheats += len(coords)
+	}
+
+	fmt.Println("Total cheats: ", totalCheats)
+}
+
+func part2() {
 	m, start, end := parseMap("resources/Day20/sample.txt")
 	printMap(m)
 	fmt.Println(start)
@@ -226,18 +244,18 @@ func part1() {
 	costs := CalculateCosts(start, m)
 	fmt.Println("cost to end: ", costs[end.row][end.column])
 
-	savingsCount := naiveSearch(m, costs, start, end)
+	savingsCount := naiveSearch(m, costs, end, 2, 1)
 
+	totalCheats := 0
 	for sav, coords := range savingsCount {
 		fmt.Println(sav, ": ", len(coords), coords)
+		totalCheats += len(coords)
 	}
-}
 
-func part2() {
-	//m, start, end := parseMap("resources/Day20/sample.txt")
-	//_ = lines
+	fmt.Println("Total cheats: ", totalCheats)
 }
 
 func main() {
-	part1()
+	//part1()
+	part2()
 }
