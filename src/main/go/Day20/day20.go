@@ -158,12 +158,15 @@ func abs(x int) int {
 	return x
 }
 
-func naiveSearch(sortedCosts []TileCost, rawCostsToEnd [][]int, rawCostsToStart [][]int, start Coords, minSavings int) map[int][]Coords {
+type CheatPair struct {
+	start Coords
+	end   Coords
+}
+
+func naiveSearch(sortedCosts []TileCost, rawCostsToEnd [][]int, rawCostsToStart [][]int, start Coords, minSavings int, maxCheatDistance int) map[int]map[CheatPair]bool {
 	initialCost := rawCostsToEnd[start.row][start.column]
 
-	savingsCount := map[int][]Coords{}
-
-	maxDiff := 2
+	savingsCount := map[int]map[CheatPair]bool{}
 
 	for highCostIdx := len(sortedCosts) - 1; highCostIdx >= 0; highCostIdx-- {
 		fmt.Println("High cost index: ", highCostIdx, len(savingsCount))
@@ -187,17 +190,20 @@ func naiveSearch(sortedCosts []TileCost, rawCostsToEnd [][]int, rawCostsToStart 
 			}
 
 			// right now only in straight lines
-			if rowIndex != tileCost.row && colIndex != tileCost.column {
-				continue
-			}
-			if dist > maxDiff {
+			//if rowIndex != tileCost.row && colIndex != tileCost.column {
+			//	continue
+			//}
+			if dist > maxCheatDistance {
 				continue
 			}
 
 			newCost := rawCostsToStart[rowIndex][colIndex] + dist + rawCostsToEnd[tileCost.row][tileCost.column]
 			finalSavings := initialCost - newCost
 			if finalSavings > 0 {
-				savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
+				if savingsCount[savings] == nil {
+					savingsCount[savings] = map[CheatPair]bool{}
+				}
+				savingsCount[savings][CheatPair{start: Coords{rowIndex, colIndex}, end: Coords{tileCost.row, tileCost.column}}] = true
 			}
 		}
 	}
@@ -235,7 +241,7 @@ func part1() {
 
 	fmt.Println("cost to end: ", rawCostsToEnd[start.row][start.column])
 
-	savingsCount := naiveSearch(sortedTileCostsToEnd, rawCostsToEnd, rawCostsToStart, start, 100)
+	savingsCount := naiveSearch(sortedTileCostsToEnd, rawCostsToEnd, rawCostsToStart, start, 100, 2)
 
 	cheatCount := 0
 	for sav, coords := range savingsCount {
@@ -246,10 +252,27 @@ func part1() {
 }
 
 func part2() {
-	//m, start, end := parseMap("resources/Day20/sample.txt")
-	//_ = lines
+	m, start, end := parseMap("resources/Day20/sample.txt")
+	printMap(m)
+	fmt.Println(start)
+	fmt.Println(end)
+
+	rawCostsToStart := CalculateCosts(start, m)
+	rawCostsToEnd := CalculateCosts(end, m)
+	sortedTileCostsToEnd := sortedTileCosts(rawCostsToEnd)
+
+	fmt.Println("cost to end: ", rawCostsToEnd[start.row][start.column])
+
+	savingsCount := naiveSearch(sortedTileCostsToEnd, rawCostsToEnd, rawCostsToStart, start, 50, 20)
+
+	cheatCount := 0
+	for sav, coords := range savingsCount {
+		fmt.Println(sav, ": ", len(coords), coords)
+		cheatCount += len(coords)
+	}
+	fmt.Println("Total cheats: ", cheatCount)
 }
 
 func main() {
-	part1()
+	part2()
 }
