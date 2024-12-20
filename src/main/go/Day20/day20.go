@@ -158,8 +158,8 @@ func abs(x int) int {
 	return x
 }
 
-func naiveSearch(m [][]rune, sortedCosts []TileCost, rawCosts [][]int, start Coords, minSavings int) map[int][]Coords {
-	initialCost := rawCosts[start.row][start.column]
+func naiveSearch(sortedCosts []TileCost, rawCostsToEnd [][]int, rawCostsToStart [][]int, start Coords, minSavings int) map[int][]Coords {
+	initialCost := rawCostsToEnd[start.row][start.column]
 
 	savingsCount := map[int][]Coords{}
 
@@ -193,11 +193,8 @@ func naiveSearch(m [][]rune, sortedCosts []TileCost, rawCosts [][]int, start Coo
 			if dist > maxDiff {
 				continue
 			}
-			cc := copyCosts(rawCosts)
-			cc[rowIndex][colIndex] = tileCost.cost + dist
-			UpdateCosts(m, cc)
 
-			newCost := cc[start.row][start.column]
+			newCost := rawCostsToStart[rowIndex][colIndex] + dist + rawCostsToEnd[tileCost.row][tileCost.column]
 			finalSavings := initialCost - newCost
 			if finalSavings > 0 {
 				savingsCount[savings] = append(savingsCount[savings], Coords{rowIndex, colIndex})
@@ -227,18 +224,18 @@ func sortedTileCosts(rawCosts [][]int) []TileCost {
 }
 
 func part1() {
-	m, start, end := parseMap("resources/Day20/sample.txt")
+	m, start, end := parseMap("resources/Day20/input.txt")
 	printMap(m)
 	fmt.Println(start)
 	fmt.Println(end)
 
-	//rawCostsToStart := CalculateCosts(start, m)
+	rawCostsToStart := CalculateCosts(start, m)
 	rawCostsToEnd := CalculateCosts(end, m)
 	sortedTileCostsToEnd := sortedTileCosts(rawCostsToEnd)
 
 	fmt.Println("cost to end: ", rawCostsToEnd[start.row][start.column])
 
-	savingsCount := naiveSearch(m, sortedTileCostsToEnd, rawCostsToEnd, start, 1)
+	savingsCount := naiveSearch(sortedTileCostsToEnd, rawCostsToEnd, rawCostsToStart, start, 100)
 
 	cheatCount := 0
 	for sav, coords := range savingsCount {
