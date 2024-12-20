@@ -136,20 +136,6 @@ func UpdateCosts(m [][]rune, costs [][]int) [][]int {
 	return costs
 }
 
-type CheatPair struct {
-	start Coords
-	end   Coords
-}
-
-func copyMap(m [][]rune) [][]rune {
-	mc := make([][]rune, 0, len(m))
-
-	for _, row := range m {
-		mc = append(mc, slices.Clone(row))
-	}
-	return mc
-}
-
 func copyCosts(c [][]int) [][]int {
 	cc := make([][]int, 0, len(c))
 
@@ -159,11 +145,11 @@ func copyCosts(c [][]int) [][]int {
 	return cc
 }
 
-func naiveSearch(m [][]rune, costs [][]int, start Coords, end Coords) map[int][]Coords {
+func naiveSearch(m [][]rune, costs [][]int, start Coords) map[int][]Coords {
 	rowCount := len(m)
 	columnCount := len(m[0])
 
-	initialCost := costs[end.row][end.column]
+	initialCost := costs[start.row][start.column]
 
 	savingsCount := map[int][]Coords{}
 
@@ -196,7 +182,7 @@ func naiveSearch(m [][]rune, costs [][]int, start Coords, end Coords) map[int][]
 					cc[rowIndex+2*rd][colIndex+2*cd] = tileCost + 2
 					UpdateCosts(m, cc)
 
-					newCost := cc[end.row][end.column]
+					newCost := cc[start.row][start.column]
 					savings := initialCost - newCost
 					if savings > 0 {
 						fmt.Println("Found one going ", rd, cd, " that saved ", savings)
@@ -223,10 +209,10 @@ func part1() {
 	fmt.Println(start)
 	fmt.Println(end)
 
-	costs := CalculateCosts(start, m)
-	fmt.Println("cost to end: ", costs[end.row][end.column])
+	costs := CalculateCosts(end, m)
+	fmt.Println("cost to end: ", costs[start.row][start.column])
 
-	savingsCount := naiveSearch(m, costs, start, end)
+	savingsCount := naiveSearch(m, costs, start)
 
 	for sav, coords := range savingsCount {
 		fmt.Println(sav, ": ", len(coords), coords)
