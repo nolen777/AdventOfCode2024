@@ -253,11 +253,32 @@ var dirPadCache = map[string][]string{}
 var cacheHits int = 0
 var cacheMisses int = 0
 
+type CostCacheKey struct {
+	remainingDepth int
+	seq            string
+}
+
+var costCache = map[CostCacheKey]int{}
+
+const MaxUint = ^uint(0)
+const MaxInt = int(MaxUint >> 1)
+
 func (dp DirectionPad) CostFor(seq string, prefix string, remainingDepth int) int {
+	superKey := CostCacheKey{remainingDepth, seq}
+	if cachedCost, ok := costCache[superKey]; ok {
+		return cachedCost
+	}
+
 	subNumPadSeqs := strings.Split(seq, string(A))
 	totalCost := 0
 	for _, ss := range subNumPadSeqs[:len(subNumPadSeqs)-1] {
 		withA := ss + "A"
+		subCacheKey := CostCacheKey{remainingDepth, ss}
+
+		if subCost, ok := costCache[subCacheKey]; ok {
+			totalCost += subCost
+			continue
+		}
 
 		var dirPad1Seqs []string
 		if dp1s, ok := dirPadCache[withA]; ok {
@@ -269,7 +290,7 @@ func (dp DirectionPad) CostFor(seq string, prefix string, remainingDepth int) in
 			cacheMisses++
 		}
 
-		minSubstringCost := 999999
+		minSubstringCost := MaxInt
 		for _, dps := range dirPad1Seqs {
 			cost := len(dps)
 			if remainingDepth > 0 {
@@ -279,13 +300,15 @@ func (dp DirectionPad) CostFor(seq string, prefix string, remainingDepth int) in
 				minSubstringCost = cost
 			}
 		}
+		costCache[subCacheKey] = minSubstringCost
 		totalCost += minSubstringCost
 	}
+	costCache[superKey] = totalCost
 	return totalCost
 }
 
-func part1() {
-	lines := parseCodes("resources/Day21/sample.txt")
+func calculate(depth int) {
+	lines := parseCodes("resources/Day21/input.txt")
 	fmt.Println(lines)
 
 	numPad := CreateNumberPad()
@@ -293,13 +316,13 @@ func part1() {
 
 	totalComplexity := 0
 	for _, line := range lines {
-		minCost := 9999999
+		minCost := MaxInt
 
 		numPadSeqs := numPad.FindSequences(string(line))
 
 		_ = dirPad
 		for _, numPadSeq := range numPadSeqs {
-			cost := dirPad.CostFor(numPadSeq, "", 1)
+			cost := dirPad.CostFor(numPadSeq, "", depth)
 			if cost < minCost {
 				minCost = cost
 			}
@@ -315,11 +338,14 @@ func part1() {
 	fmt.Println("Total complexity: ", totalComplexity)
 }
 
+func part1() {
+	calculate(1)
+}
+
 func part2() {
-	lines := parseCodes("resources/Day21/sample.txt")
-	_ = lines
+	calculate(24)
 }
 
 func main() {
-	part1()
+	part2()
 }
