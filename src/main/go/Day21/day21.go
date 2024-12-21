@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -290,6 +291,7 @@ func part1() {
 	numPad := CreateNumberPad()
 	dirPad := CreateDirectionPad()
 
+	totalComplexity := 0
 	for _, line := range lines {
 		minCost := 9999999
 
@@ -303,7 +305,14 @@ func part1() {
 			}
 		}
 		fmt.Println(line, " costs ", minCost)
+
+		numPart, err := strconv.Atoi(line[:len(line)-1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		totalComplexity += minCost * numPart
 	}
+	fmt.Println("Total complexity: ", totalComplexity)
 }
 
 func part2() {
