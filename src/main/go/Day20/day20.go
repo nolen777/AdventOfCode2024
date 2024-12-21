@@ -83,13 +83,6 @@ func CalculateCosts(from Coords, m [][]rune) [][]int {
 
 	costs[from.row][from.column] = 0
 
-	return UpdateCosts(m, costs)
-}
-
-func UpdateCosts(m [][]rune, costs [][]int) [][]int {
-	rowCount := len(costs)
-	columnCount := len(costs[0])
-
 	isValid := func(row int, column int) bool {
 		return row >= 0 && column >= 0 && row < rowCount && column < columnCount
 	}
@@ -136,13 +129,86 @@ func UpdateCosts(m [][]rune, costs [][]int) [][]int {
 	return costs
 }
 
-func copyCosts(c [][]int) [][]int {
-	cc := make([][]int, 0, len(c))
-
-	for _, row := range c {
-		cc = append(cc, slices.Clone(row))
+func MinRemoved(nodes []Coords, costs [][]int) (Coords, []Coords) {
+	minValue := MaxInt
+	minIndex := -1
+	for idx, tc := range nodes {
+		if costs[tc.row][tc.column] < minValue {
+			minIndex = idx
+		}
 	}
-	return cc
+
+	tc := nodes[minIndex]
+	nodes[minIndex] = nodes[len(nodes)-1]
+	return tc, nodes[:len(nodes)-1]
+}
+
+func DijkstraCosts(from Coords, m [][]rune) [][]int {
+	rowCount := len(m)
+	columnCount := len(m[0])
+
+	costs := make([][]int, 0, rowCount)
+	oneRow := make([]int, 0, columnCount)
+	for j := 0; j < columnCount; j++ {
+		oneRow = append(oneRow, MaxInt)
+	}
+	for i := 0; i < rowCount; i++ {
+		costs = append(costs, slices.Clone(oneRow))
+	}
+
+	costs[from.row][from.column] = 0
+
+	isValid := func(row int, column int) bool {
+		return row >= 0 && column >= 0 && row < rowCount && column < columnCount
+	}
+
+	unvisitedNodes := make([]Coords, 0, rowCount*columnCount)
+	for rIdx, row := range m {
+		for cIdx, _ := range row {
+			if m[rIdx][cIdx] == Wall {
+				continue
+			}
+			unvisitedNodes = append(unvisitedNodes, Coords{rIdx, cIdx})
+		}
+	}
+
+	changes := 1
+	// Go through every tile repeatedly. On each tile, see if we've identified
+	// a cheaper path to it
+	for changes > 0 {
+		changes = 0
+
+		node, newUnv := MinRemoved(unvisitedNodes, costs)
+
+		rowIndex := node.row
+		colIndex := node.column
+		thisCost := costs[rowIndex][colIndex]
+
+		checkDir := func(rd int, cd int) {
+			if !isValid(rowIndex+rd, colIndex+cd) {
+				return
+			}
+			if m[rowIndex+rd][colIndex+cd] == Wall {
+				return
+			}
+			if thisCost+1 < costs[rowIndex+rd][colIndex+cd] {
+				changes++
+				costs[rowIndex+rd][colIndex+cd] = thisCost + 1
+			}
+		}
+
+		checkDir(-1, 0)
+		checkDir(1, 0)
+		checkDir(0, -1)
+		checkDir(0, 1)
+
+		unvisitedNodes = newUnv
+		if len(unvisitedNodes) < 1 {
+			break
+		}
+	}
+
+	return costs
 }
 
 type TileCost struct {
@@ -169,7 +235,6 @@ func naiveSearch(sortedCosts []TileCost, rawCostsToEnd [][]int, rawCostsToStart 
 	savingsCount := map[int]map[CheatPair]bool{}
 
 	for highCostIdx := len(sortedCosts) - 1; highCostIdx >= 0; highCostIdx-- {
-		fmt.Println("High cost index: ", highCostIdx, len(savingsCount))
 		highCost := sortedCosts[highCostIdx]
 
 		rowIndex := highCost.row
@@ -189,7 +254,7 @@ func naiveSearch(sortedCosts []TileCost, rawCostsToEnd [][]int, rawCostsToStart 
 				continue
 			}
 
-			// right now only in straight lines
+			//right now only in straight lines
 			//if rowIndex != tileCost.row && colIndex != tileCost.column {
 			//	continue
 			//}
@@ -235,39 +300,40 @@ func part1() {
 	fmt.Println(start)
 	fmt.Println(end)
 
-	rawCostsToStart := CalculateCosts(start, m)
-	rawCostsToEnd := CalculateCosts(end, m)
-	sortedTileCostsToEnd := sortedTileCosts(rawCostsToEnd)
+	dijkstraCostsToStart := DijkstraCosts(start, m)
+	dijkstraCostsToEnd := DijkstraCosts(end, m)
 
-	fmt.Println("cost to end: ", rawCostsToEnd[start.row][start.column])
+	sortedTileCostsToEnd := sortedTileCosts(dijkstraCostsToEnd)
 
-	savingsCount := naiveSearch(sortedTileCostsToEnd, rawCostsToEnd, rawCostsToStart, start, 100, 2)
+	fmt.Println("cost to end: ", dijkstraCostsToEnd[start.row][start.column])
+
+	savingsCount := naiveSearch(sortedTileCostsToEnd, dijkstraCostsToEnd, dijkstraCostsToStart, start, 100, 2)
 
 	cheatCount := 0
-	for sav, coords := range savingsCount {
-		fmt.Println(sav, ": ", len(coords), coords)
+	for _, coords := range savingsCount {
+		//		fmt.Println(sav, ": ", len(coords), coords)
 		cheatCount += len(coords)
 	}
 	fmt.Println("Total cheats: ", cheatCount)
 }
 
 func part2() {
-	m, start, end := parseMap("resources/Day20/sample.txt")
+	m, start, end := parseMap("resources/Day20/input.txt")
 	printMap(m)
 	fmt.Println(start)
 	fmt.Println(end)
 
-	rawCostsToStart := CalculateCosts(start, m)
-	rawCostsToEnd := CalculateCosts(end, m)
-	sortedTileCostsToEnd := sortedTileCosts(rawCostsToEnd)
+	dijkstraCostsToStart := DijkstraCosts(start, m)
+	dijkstraCostsToEnd := DijkstraCosts(end, m)
+	sortedTileCostsToEnd := sortedTileCosts(dijkstraCostsToEnd)
 
-	fmt.Println("cost to end: ", rawCostsToEnd[start.row][start.column])
+	fmt.Println("cost to end: ", dijkstraCostsToEnd[start.row][start.column])
 
-	savingsCount := naiveSearch(sortedTileCostsToEnd, rawCostsToEnd, rawCostsToStart, start, 50, 20)
+	savingsCount := naiveSearch(sortedTileCostsToEnd, dijkstraCostsToEnd, dijkstraCostsToStart, start, 100, 20)
 
 	cheatCount := 0
-	for sav, coords := range savingsCount {
-		fmt.Println(sav, ": ", len(coords), coords)
+	for _, coords := range savingsCount {
+		//		fmt.Println(sav, ": ", len(coords), coords)
 		cheatCount += len(coords)
 	}
 	fmt.Println("Total cheats: ", cheatCount)
