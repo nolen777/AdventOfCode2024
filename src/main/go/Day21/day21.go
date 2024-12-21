@@ -204,7 +204,7 @@ func calculate(depth int) {
 	for _, line := range lines {
 		minCost := MaxInt
 
-		numPadSeqs := numberPad.FindSequences(string(line))
+		numPadSeqs := numberPad.FindSequences(line)
 
 		for _, numPadSeq := range numPadSeqs {
 			cost := directionPad.CostFor(numPadSeq, "", depth)
@@ -229,8 +229,6 @@ func part1() {
 
 func part2() {
 	calculate(24)
-	fmt.Println("dirPadCache size: ", len(dirPadCache))
-	fmt.Println("costCache size: ", len(costCache))
 }
 
 func main() {
