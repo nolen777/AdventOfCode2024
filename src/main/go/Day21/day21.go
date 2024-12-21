@@ -45,6 +45,7 @@ type Pad struct {
 	rowCount    int
 	columnCount int
 	keys        [][]byte
+	panicCoords Coords
 }
 
 type NumberPad Pad
@@ -70,8 +71,6 @@ func (np NumberPad) CoordsOf(b byte) Coords {
 		return Coords{2, 1}
 	case '3':
 		return Coords{2, 2}
-	case Panic:
-		return Coords{3, 0}
 	case '0':
 		return Coords{3, 1}
 	case A:
@@ -84,8 +83,6 @@ func (np NumberPad) CoordsOf(b byte) Coords {
 
 func (dp DirectionPad) CoordsOf(b byte) Coords {
 	switch b {
-	case Panic:
-		return Coords{0, 0}
 	case Up:
 		return Coords{0, 1}
 	case A:
@@ -116,7 +113,7 @@ func (p Pad) CoordsOf(b byte) Coords {
 }
 
 func CreateNumberPad() NumberPad {
-	pad := NumberPad{rowCount: 4, columnCount: 3, keys: [][]byte{}}
+	pad := NumberPad{rowCount: 4, columnCount: 3, keys: [][]byte{}, panicCoords: Coords{3, 0}}
 
 	row0 := []byte{'7', '8', '9'}
 	row1 := []byte{'4', '5', '6'}
@@ -128,7 +125,7 @@ func CreateNumberPad() NumberPad {
 }
 
 func CreateDirectionPad() DirectionPad {
-	pad := DirectionPad{rowCount: 2, columnCount: 3, keys: [][]byte{}}
+	pad := DirectionPad{rowCount: 2, columnCount: 3, keys: [][]byte{}, panicCoords: Coords{0, 0}}
 
 	row0 := []byte{Panic, Up, A}
 	row1 := []byte{Left, Down, Right}
@@ -142,27 +139,45 @@ func (p NumberPad) CoordDirections(from Coords, to Coords, ms string) []string {
 	if from == to {
 		return []string{ms}
 	}
+	if from == p.panicCoords {
+		log.Fatal("Can't start at Panic")
+	}
+	if to == p.panicCoords {
+		log.Fatal("Can't go to Panic")
+	}
 
 	rDiff := to.row - from.row
 	cDiff := to.column - from.column
 
 	directions := []string{}
 
-	if rDiff > 0 && p.keys[from.row+1][from.column] != Panic {
-		added := p.CoordDirections(Coords{from.row + 1, from.column}, to, ms+string(Down))
-		directions = append(directions, added...)
+	if rDiff > 0 {
+		next := Coords{from.row + 1, from.column}
+		if next != p.panicCoords {
+			added := p.CoordDirections(next, to, ms+string(Down))
+			directions = append(directions, added...)
+		}
 	}
-	if rDiff < 0 && p.keys[from.row-1][from.column] != Panic {
-		added := p.CoordDirections(Coords{from.row - 1, from.column}, to, ms+string(Up))
-		directions = append(directions, added...)
+	if rDiff < 0 {
+		next := Coords{from.row - 1, from.column}
+		if next != p.panicCoords {
+			added := p.CoordDirections(next, to, ms+string(Up))
+			directions = append(directions, added...)
+		}
 	}
-	if cDiff > 0 && p.keys[from.row][from.column+1] != Panic {
-		added := p.CoordDirections(Coords{from.row, from.column + 1}, to, ms+string(Right))
-		directions = append(directions, added...)
+	if cDiff > 0 {
+		next := Coords{from.row, from.column + 1}
+		if next != p.panicCoords {
+			added := p.CoordDirections(next, to, ms+string(Right))
+			directions = append(directions, added...)
+		}
 	}
-	if cDiff < 0 && p.keys[from.row][from.column-1] != Panic {
-		added := p.CoordDirections(Coords{from.row, from.column - 1}, to, ms+string(Left))
-		directions = append(directions, added...)
+	if cDiff < 0 {
+		next := Coords{from.row, from.column - 1}
+		if next != p.panicCoords {
+			added := p.CoordDirections(next, to, ms+string(Left))
+			directions = append(directions, added...)
+		}
 	}
 
 	return directions
@@ -178,21 +193,33 @@ func (dp DirectionPad) CoordDirections(from Coords, to Coords, ms string) []stri
 
 	directions := []string{}
 
-	if rDiff > 0 && dp.keys[from.row+1][from.column] != Panic {
-		added := dp.CoordDirections(Coords{from.row + 1, from.column}, to, ms+string(Down))
-		directions = append(directions, added...)
+	if rDiff > 0 {
+		next := Coords{from.row + 1, from.column}
+		if next != dp.panicCoords {
+			added := dp.CoordDirections(next, to, ms+string(Down))
+			directions = append(directions, added...)
+		}
 	}
-	if rDiff < 0 && dp.keys[from.row-1][from.column] != Panic {
-		added := dp.CoordDirections(Coords{from.row - 1, from.column}, to, ms+string(Up))
-		directions = append(directions, added...)
+	if rDiff < 0 {
+		next := Coords{from.row - 1, from.column}
+		if next != dp.panicCoords {
+			added := dp.CoordDirections(next, to, ms+string(Up))
+			directions = append(directions, added...)
+		}
 	}
-	if cDiff > 0 && dp.keys[from.row][from.column+1] != Panic {
-		added := dp.CoordDirections(Coords{from.row, from.column + 1}, to, ms+string(Right))
-		directions = append(directions, added...)
+	if cDiff > 0 {
+		next := Coords{from.row, from.column + 1}
+		if next != dp.panicCoords {
+			added := dp.CoordDirections(next, to, ms+string(Right))
+			directions = append(directions, added...)
+		}
 	}
-	if cDiff < 0 && dp.keys[from.row][from.column-1] != Panic {
-		added := dp.CoordDirections(Coords{from.row, from.column - 1}, to, ms+string(Left))
-		directions = append(directions, added...)
+	if cDiff < 0 {
+		next := Coords{from.row, from.column - 1}
+		if next != dp.panicCoords {
+			added := dp.CoordDirections(next, to, ms+string(Left))
+			directions = append(directions, added...)
+		}
 	}
 
 	return directions
@@ -344,6 +371,8 @@ func part1() {
 
 func part2() {
 	calculate(24)
+	fmt.Println("dirPadCache size: ", len(dirPadCache))
+	fmt.Println("costCache size: ", len(costCache))
 }
 
 func main() {
