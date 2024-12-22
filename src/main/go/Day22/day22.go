@@ -89,17 +89,19 @@ func part2() {
 		for i := 0; i < 2000; i++ {
 			newSecret = evolve(newSecret)
 			newPrice := newSecret % 10
-			priceChange := newPrice - lastPrice
 
-			last4 = last4.slide(int8(priceChange))
-			if i >= 3 {
-				if !thisSeqs[last4] {
-					thisSeqs[last4] = true
-					sequenceSums[last4] += newPrice
-				}
+			last4 = last4.slide(int8(newPrice - lastPrice))
+			lastPrice = newPrice
+
+			if i < 4 {
+				continue
+			}
+			if thisSeqs[last4] {
+				continue
 			}
 
-			lastPrice = newPrice
+			thisSeqs[last4] = true
+			sequenceSums[last4] += newPrice
 		}
 	}
 
