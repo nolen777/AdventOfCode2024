@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"strconv"
 )
 
@@ -65,14 +64,10 @@ func part1() {
 }
 
 type Seq4 struct {
-	a, b, c, d int
+	a, b, c, d int8
 }
 
-func (s4 Seq4) sum() int {
-	return s4.a + s4.b + s4.c + s4.d
-}
-
-func (s4 Seq4) slide(newVal int) Seq4 {
+func (s4 Seq4) slide(newVal int8) Seq4 {
 	return Seq4{s4.b, s4.c, s4.d, newVal}
 }
 
@@ -96,12 +91,9 @@ func part2() {
 			newPrice := newSecret % 10
 			priceChange := newPrice - lastPrice
 
-			last4 = last4.slide(priceChange)
+			last4 = last4.slide(int8(priceChange))
 			if i >= 3 {
 				if !thisSeqs[last4] {
-					if last4 == expected {
-						fmt.Println("here we are")
-					}
 					thisSeqs[last4] = true
 					sequenceSums[last4] += newPrice
 				}
@@ -111,17 +103,17 @@ func part2() {
 		}
 	}
 
-	type kv struct {
-		k Seq4
-		v int
-	}
-	kvs := make([]kv, 0, len(sequenceSums))
-	for k, v := range sequenceSums {
-		kvs = append(kvs, kv{k, v})
-	}
-	slices.SortFunc(kvs, func(kv1 kv, kv2 kv) int { return kv2.v - kv1.v })
+	var maxSeq Seq4
+	var maxValue int
 
-	fmt.Println(kvs[0])
+	for k, v := range sequenceSums {
+		if v > maxValue {
+			maxSeq = k
+			maxValue = v
+		}
+	}
+
+	fmt.Println(maxSeq, maxValue)
 }
 
 func main() {
