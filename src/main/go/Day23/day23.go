@@ -144,24 +144,12 @@ func part2() {
 		pc[s] = true
 		return pc
 	}
-	//getPassword := func(ps Party) string {
-	//	return strings.Join(ps, ",")
-	//}
 
 	parties := make([]Party, 0, len(triples))
 
 	for triple := range triples {
 		parties = append(parties, makeParty(triple))
 	}
-	//slices.SortFunc(parties, func(a Party, b Party) int {
-	//	if getPassword(a) < getPassword(b) {
-	//		return -1
-	//	}
-	//	if getPassword(a) == getPassword(b) {
-	//		return 0
-	//	}
-	//	return 1
-	//})
 
 	changes := true
 	minSize := 3
@@ -204,6 +192,14 @@ func part2() {
 
 	fmt.Println(lastParty)
 	fmt.Printf("%d found!\n", len(lastParty))
+
+	elts := make([]string, 0, len(lastParty))
+	for k := range lastParty {
+		elts = append(elts, k)
+	}
+	slices.Sort(elts)
+	password := strings.Join(elts, ",")
+	fmt.Println(password)
 }
 
 func main() {
