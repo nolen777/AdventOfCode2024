@@ -10,19 +10,6 @@ import (
 	"strings"
 )
 
-type Edge struct {
-	a string
-	b string
-}
-
-// Always make in alpha order
-func MakeEdge(a string, b string) Edge {
-	if a < b {
-		return Edge{a, b}
-	}
-	return Edge{b, a}
-}
-
 type Node struct {
 	name  string
 	edges map[string]bool
@@ -117,6 +104,26 @@ func FilterNodes(nodes map[string]Node, condition func(Node) bool) {
 	}
 }
 
+type Party map[string]bool
+
+func MakeParty(t Triple) Party {
+	return Party{t.a: true, t.b: true, t.c: true}
+}
+func (p Party) AppendedParty(s string) Party {
+	pc := maps.Clone(p)
+	pc[s] = true
+	return pc
+}
+
+func (p Party) GetPassword() string {
+	elts := make([]string, 0, len(p))
+	for k := range p {
+		elts = append(elts, k)
+	}
+	slices.Sort(elts)
+	return strings.Join(elts, ",")
+}
+
 func part2() {
 	nodes := ParseNodes("resources/Day23/input.txt")
 	fmt.Println("Start size: ", len(nodes))
@@ -135,30 +142,11 @@ func part2() {
 
 	triples := FindTriples(nodes)
 
-	type Party map[string]bool
-	makeParty := func(t Triple) Party {
-		return Party{t.a: true, t.b: true, t.c: true}
-	}
-	appendedParty := func(ps Party, s string) Party {
-		pc := maps.Clone(ps)
-		pc[s] = true
-		return pc
-	}
-
 	parties := map[string]Party{}
 
-	getPassword := func(p Party) string {
-		elts := make([]string, 0, len(p))
-		for k := range p {
-			elts = append(elts, k)
-		}
-		slices.Sort(elts)
-		return strings.Join(elts, ",")
-	}
-
 	for triple := range triples {
-		newParty := makeParty(triple)
-		parties[getPassword(newParty)] = newParty
+		newParty := MakeParty(triple)
+		parties[newParty.GetPassword()] = newParty
 	}
 
 	changes := true
@@ -199,25 +187,27 @@ func part2() {
 
 			for c := range candidates {
 				changes = true
-				newParty := appendedParty(party, c)
-				newParties[getPassword(newParty)] = newParty
+				newParty := party.AppendedParty(c)
+				newParties[newParty.GetPassword()] = newParty
 			}
 		}
 		minLength++
 		parties = newParties
 	}
 
-	longestPassword := ""
-	for k := range parties {
-		if len(k) > len(longestPassword) {
-			longestPassword = k
-		}
+	if len(parties) != 1 {
+		log.Fatalf("Failed; expected 1 party but got %d\n", len(parties))
 	}
 
-	fmt.Printf("%d found!\n", len(parties))
-	fmt.Println(longestPassword)
+	longestPassword := ""
+	var longestParty Party
+	for k, v := range parties {
+		longestPassword = k
+		longestParty = v
+	}
 
-	//fmt.Println(password)
+	fmt.Printf("found of length %d\n", (len(longestParty)))
+	fmt.Println(longestPassword)
 }
 
 func main() {
