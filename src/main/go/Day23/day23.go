@@ -118,7 +118,7 @@ func FilterNodes(nodes map[string]Node, condition func(Node) bool) {
 }
 
 func part2() {
-	nodes := ParseNodes("resources/Day23/sample.txt")
+	nodes := ParseNodes("resources/Day23/input.txt")
 	fmt.Println("Start size: ", len(nodes))
 	FilterNodes(nodes, func(n Node) bool {
 		if n.name[0] == 't' {
@@ -145,18 +145,35 @@ func part2() {
 		return pc
 	}
 
-	parties := make([]Party, 0, len(triples))
+	parties := map[string]Party{}
+
+	getPassword := func(p Party) string {
+		elts := make([]string, 0, len(p))
+		for k := range p {
+			elts = append(elts, k)
+		}
+		slices.Sort(elts)
+		return strings.Join(elts, ",")
+	}
 
 	for triple := range triples {
-		parties = append(parties, makeParty(triple))
+		newParty := makeParty(triple)
+		parties[getPassword(newParty)] = newParty
 	}
 
 	changes := true
-	minSize := 3
+	minLength := 3
 	for changes {
+		fmt.Println("Party count: ", len(parties))
+		if len(parties) == 1 {
+			break
+		}
 		changes = false
+		newParties := map[string]Party{}
+
+		// wtf
 		for _, party := range parties {
-			if len(party) < minSize {
+			if len(party) < minLength {
 				continue
 			}
 			candidates := map[string]bool{}
@@ -182,24 +199,25 @@ func part2() {
 
 			for c := range candidates {
 				changes = true
-				parties = append(parties, appendedParty(party, c))
+				newParty := appendedParty(party, c)
+				newParties[getPassword(newParty)] = newParty
 			}
 		}
-		minSize++
+		minLength++
+		parties = newParties
 	}
 
-	lastParty := parties[len(parties)-1]
-
-	fmt.Println(lastParty)
-	fmt.Printf("%d found!\n", len(lastParty))
-
-	elts := make([]string, 0, len(lastParty))
-	for k := range lastParty {
-		elts = append(elts, k)
+	longestPassword := ""
+	for k := range parties {
+		if len(k) > len(longestPassword) {
+			longestPassword = k
+		}
 	}
-	slices.Sort(elts)
-	password := strings.Join(elts, ",")
-	fmt.Println(password)
+
+	fmt.Printf("%d found!\n", len(parties))
+	fmt.Println(longestPassword)
+
+	//fmt.Println(password)
 }
 
 func main() {
