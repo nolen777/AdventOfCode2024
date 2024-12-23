@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -61,22 +62,20 @@ func ParseNodes(fileName string) map[string]Node {
 	return nodes
 }
 
-func part1() {
-	nodes := ParseNodes("resources/Day23/sample.txt")
+type Triple struct {
+	a string
+	b string
+	c string
+}
 
-	type Triple struct {
-		a string
-		b string
-		c string
-	}
+func FindTriples(nodes map[string]Node) map[Triple]bool {
+	triples := map[Triple]bool{}
 
 	makeTriple := func(a string, b string, c string) Triple {
 		elts := []string{a, b, c}
 		slices.Sort(elts)
 		return Triple{elts[0], elts[1], elts[2]}
 	}
-
-	triples := map[Triple]bool{}
 
 	for _, node := range nodes {
 		a := node.name
@@ -95,20 +94,118 @@ func part1() {
 			}
 		}
 	}
+	return triples
+}
+
+func part1() {
+	nodes := ParseNodes("resources/Day23/input.txt")
+
+	triples := FindTriples(nodes)
 
 	for triple := range triples {
 		fmt.Printf("%s,%s,%s\n", triple.a, triple.b, triple.c)
 	}
 	fmt.Printf("%d found!\n", len(triples))
+}
 
-	fmt.Println(nodes)
+func FilterNodes(nodes map[string]Node, condition func(Node) bool) {
+	for k, v := range nodes {
+		if condition(v) {
+			continue
+		}
+		delete(nodes, k)
+	}
 }
 
 func part2() {
 	nodes := ParseNodes("resources/Day23/sample.txt")
-	_ = nodes
+	fmt.Println("Start size: ", len(nodes))
+	FilterNodes(nodes, func(n Node) bool {
+		if n.name[0] == 't' {
+			return true
+		}
+		for k := range n.edges {
+			if k[0] == 't' {
+				return true
+			}
+		}
+		return false
+	})
+	fmt.Println("Filtered size: ", len(nodes))
+
+	triples := FindTriples(nodes)
+
+	type Party map[string]bool
+	makeParty := func(t Triple) Party {
+		return Party{t.a: true, t.b: true, t.c: true}
+	}
+	appendedParty := func(ps Party, s string) Party {
+		pc := maps.Clone(ps)
+		pc[s] = true
+		return pc
+	}
+	//getPassword := func(ps Party) string {
+	//	return strings.Join(ps, ",")
+	//}
+
+	parties := make([]Party, 0, len(triples))
+
+	for triple := range triples {
+		parties = append(parties, makeParty(triple))
+	}
+	//slices.SortFunc(parties, func(a Party, b Party) int {
+	//	if getPassword(a) < getPassword(b) {
+	//		return -1
+	//	}
+	//	if getPassword(a) == getPassword(b) {
+	//		return 0
+	//	}
+	//	return 1
+	//})
+
+	changes := true
+	minSize := 3
+	for changes {
+		changes = false
+		for _, party := range parties {
+			if len(party) < minSize {
+				continue
+			}
+			candidates := map[string]bool{}
+
+			first := true
+			for k := range party {
+				if first {
+					candidates = maps.Clone(nodes[k].edges)
+					for c := range candidates {
+						if party[c] {
+							delete(candidates, c)
+						}
+					}
+					first = false
+					continue
+				}
+				for c := range candidates {
+					if !nodes[k].edges[c] {
+						delete(candidates, c)
+					}
+				}
+			}
+
+			for c := range candidates {
+				changes = true
+				parties = append(parties, appendedParty(party, c))
+			}
+		}
+		minSize++
+	}
+
+	lastParty := parties[len(parties)-1]
+
+	fmt.Println(lastParty)
+	fmt.Printf("%d found!\n", len(lastParty))
 }
 
 func main() {
-	part1()
+	part2()
 }
