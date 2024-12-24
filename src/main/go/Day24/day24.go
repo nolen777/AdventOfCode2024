@@ -255,6 +255,28 @@ func AppendDepIndices(name string, gates []Gate, indices map[int]bool) map[int]b
 	return indices
 }
 
+func TryValues(gates []Gate, position int, x bool, y bool, expectZ0 bool, expectZ1 bool) bool {
+	vals := map[string]bool{}
+	vals = Set("x", 0, vals, 64)
+	vals = Set("y", 0, vals, 64)
+
+	vals[NameForPosition("x", position)] = x
+	vals[NameForPosition("y", position)] = y
+	cont := true
+	for cont {
+		gates, cont = iterateGates(vals, gates)
+	}
+	if vals[NameForPosition("z", position)] != expectZ0 {
+		//		fmt.Printf("Failed z0 for x==%t, y==%t at %d\n", x, y, pos)
+		return false
+	}
+	if vals[NameForPosition("z", position+1)] != expectZ1 {
+		//		fmt.Printf("Failed z1 for x==%t, y==%t at %d\n", x, y, pos)
+		return false
+	}
+	return true
+}
+
 func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]bool, origGates []Gate, startPosition int, bits int) (map[string]bool, bool) {
 	if len(allSwappedNames) > 8 {
 		return allSwappedNames, false
@@ -264,31 +286,9 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 	}
 	for pos := 0; pos <= startPosition; pos++ {
 		possibleSwapIndices := map[int]bool{}
-		tryVals := func(gates []Gate, position int, x bool, y bool, expectZ0 bool, expectZ1 bool) bool {
-			vals := map[string]bool{}
-
-			vals[NameForPosition("x", position)] = x
-			vals[NameForPosition("y", position)] = y
-			cont := true
-			for cont {
-				gates, cont = iterateGates(vals, gates)
-			}
-			if vals[NameForPosition("z", position)] != expectZ0 {
-				//		fmt.Printf("Failed z0 for x==%t, y==%t at %d\n", x, y, pos)
-				return false
-			}
-			if vals[NameForPosition("z", position+1)] != expectZ1 {
-				//		fmt.Printf("Failed z1 for x==%t, y==%t at %d\n", x, y, pos)
-				return false
-			}
-			return true
-		}
 
 		anyFailure := false
-		var failed bool
-		failed = !tryVals(slices.Clone(origGates), pos, false, false, false, false)
-		failed = failed || !tryVals(slices.Clone(origGates), pos, false, true, true, false)
-		if failed {
+		if !TryValues(slices.Clone(origGates), pos, false, true, true, false) || !TryValues(slices.Clone(origGates), pos, false, false, false, false) {
 			if pos < startPosition {
 				return nil, false
 			}
@@ -296,9 +296,7 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 			anyFailure = true
 		}
 
-		failed = !tryVals(slices.Clone(origGates), pos, true, false, true, false)
-		failed = failed || !tryVals(slices.Clone(origGates), pos, true, true, false, true)
-		if failed {
+		if !TryValues(slices.Clone(origGates), pos, true, false, true, false) || !TryValues(slices.Clone(origGates), pos, true, true, false, true) {
 			if pos < startPosition {
 				return nil, false
 			}
@@ -362,18 +360,20 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 					swappedGates[swapIdx2] = swap1
 					swappedGates[swapIdx1] = swap2
 
-					if !tryVals(swappedGates, pos, false, false, false, false) {
+					if !TryValues(swappedGates, pos, false, false, false, false) {
 						continue
 					}
-					if !tryVals(swappedGates, pos, false, true, true, false) {
+					if !TryValues(swappedGates, pos, false, true, true, false) {
 						continue
 					}
-					if !tryVals(swappedGates, pos, true, false, true, false) {
+					if !TryValues(swappedGates, pos, true, false, true, false) {
 						continue
 					}
-					if !tryVals(swappedGates, pos, true, true, false, true) {
+					if !TryValues(swappedGates, pos, true, true, false, true) {
 						continue
 					}
+
+					fmt.Printf("%d: %s, %s may work\n", pos, swap1.output, swap2.output)
 
 					swappedGateSets = append(swappedGateSets, IndexPair{swapIdx1, swapIdx2})
 				}
