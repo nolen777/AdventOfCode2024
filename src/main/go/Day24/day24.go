@@ -81,7 +81,10 @@ func parseGates(fileName string) (map[string]bool, []Gate) {
 		i2 := match[3]
 		o := match[4]
 
-		gates = append(gates, Gate{input1: i1, input2: i2, gateType: gt, output: o})
+		low := min(i1, i2)
+		high := max(i1, i2)
+
+		gates = append(gates, Gate{input1: low, input2: high, gateType: gt, output: o})
 	}
 
 	return initialValues, gates
@@ -230,11 +233,11 @@ func TryValues(gates []Gate, position int, x bool, y bool, expectZ0 bool, expect
 	return true
 }
 
-func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]bool, origGates []Gate, startPosition int, bits int) (map[string]bool, bool) {
+func recursiveTrySwaps(allSwappedNames map[string]bool, origGates []Gate, startPosition int, bits int) (map[string]bool, bool) {
 	if len(allSwappedNames) > 8 {
 		return allSwappedNames, false
 	}
-	if startPosition > bits+1 {
+	if startPosition > bits {
 		return allSwappedNames, true
 	}
 	for pos := 0; pos <= startPosition; pos++ {
@@ -261,41 +264,51 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 			continue
 		}
 
-		for k, _ := range previousDeps {
-			for swapIdx, _ := range possibleSwapIndices {
-				if origGates[swapIdx].output == k {
-					delete(possibleSwapIndices, swapIdx)
-				}
-			}
-		}
+		//for k, _ := range previousDeps {
+		//	for swapIdx, _ := range possibleSwapIndices {
+		//		if origGates[swapIdx].output == k {
+		//			delete(possibleSwapIndices, swapIdx)
+		//		}
+		//	}
+		//}
 
 		newDepIndices := map[int]bool{}
 
 		newDepIndices = AppendDepIndices(NameForPosition("z", pos), origGates, newDepIndices)
 		newDepIndices = AppendDepIndices(NameForPosition("z", pos+1), origGates, newDepIndices)
 
-		for idx, _ := range newDepIndices {
-			previousDeps[origGates[idx].output] = true
-		}
+		//for idx, _ := range newDepIndices {
+		//	previousDeps[origGates[idx].output] = true
+		//}
 		if !anyFailure {
-			return recursiveTrySwaps(previousDeps, allSwappedNames, origGates, pos+1, bits)
+			return recursiveTrySwaps(allSwappedNames, origGates, pos+1, bits)
 		} else {
 			type IndexPair struct {
 				left  int
 				right int
 			}
 
-			swappedGateSets := []IndexPair{}
-			for swapIdx1 := 0; swapIdx1 < len(origGates)-1; swapIdx1++ {
-				if allSwappedNames[origGates[swapIdx1].output] {
+			swappedGateSets := map[IndexPair]bool{}
+			for swapIdx2 := range possibleSwapIndices {
+				swap2 := origGates[swapIdx2]
+				if allSwappedNames[origGates[swapIdx2].output] {
 					continue
 				}
-				swap1 := origGates[swapIdx1]
-				for swapIdx2 := range possibleSwapIndices {
-					swap2 := origGates[swapIdx2]
-					if allSwappedNames[origGates[swapIdx2].output] {
+				for swapIdx1 := 0; swapIdx1 < len(origGates)-1; swapIdx1++ {
+					if allSwappedNames[origGates[swapIdx1].output] {
 						continue
 					}
+					swap1 := origGates[swapIdx1]
+
+					pair := IndexPair{swapIdx1, swapIdx2}
+					if swapIdx2 < swapIdx1 {
+						pair = IndexPair{swapIdx2, swapIdx1}
+					}
+
+					if swappedGateSets[pair] {
+						continue
+					}
+
 					if swapIdx1 == swapIdx2 {
 						continue
 					}
@@ -326,26 +339,31 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 						continue
 					}
 
-					fmt.Printf("%d: %s, %s may work\n", pos, swap1.output, swap2.output)
-
-					swappedGateSets = append(swappedGateSets, IndexPair{swapIdx1, swapIdx2})
+					swappedGateSets[pair] = true
 				}
 			}
 
-			for _, indexPair := range swappedGateSets {
+			for indexPair, _ := range swappedGateSets {
 				swap1 := origGates[indexPair.left]
 				swap2 := origGates[indexPair.right]
+
+				fmt.Printf("%d: %s, %s may work\n", pos, swap1.output, swap2.output)
+
 				swap1.output = origGates[indexPair.right].output
 				swap2.output = origGates[indexPair.left].output
 				swappedGates := slices.Clone(origGates)
 				swappedGates[indexPair.right] = swap1
 				swappedGates[indexPair.left] = swap2
-				//fmt.Println("Possible swap! ", swap1.output, swap2.output)
+
 				swappedNamesClone := maps.Clone(allSwappedNames)
 				swappedNamesClone[swap1.output] = true
 				swappedNamesClone[swap2.output] = true
 
-				swaps, ok := recursiveTrySwaps(previousDeps, swappedNamesClone, swappedGates, pos+1, bits)
+				swaps, ok := recursiveTrySwaps(swappedNamesClone, swappedGates, pos+1, bits)
+				//
+				////fmt.Println("Possible swap! ", swap1.output, swap2.output)
+				//
+				//swaps, ok := recursiveTrySwaps(previousDeps, swappedNamesClone, swappedGates, pos+1, bits)
 				if ok {
 					return swaps, true
 				}
@@ -390,6 +408,132 @@ func FillTrees(trees map[string]*GateTree) map[string]*GateTree {
 func part2() {
 	origValues, origGates := parseGates("resources/Day24/input.txt")
 	fmt.Println(origValues)
+
+	var bits int
+	for name, _ := range origValues {
+		if name[0] != 'x' {
+			continue
+		}
+		num, _ := strconv.Atoi(name[1:])
+		if num > bits {
+			bits = num
+		}
+	}
+	bits += 1
+
+	findGate := func(name string) (int, Gate) {
+		for idx, gate := range origGates {
+			if gate.output == name {
+				return idx, gate
+			}
+		}
+		log.Fatal("Not found")
+		return -1, Gate{}
+	}
+
+	subs := map[string]string{}
+
+	for bit := 0; bit < bits; bit++ {
+		xN := NameForPosition("x", bit)
+		yN := NameForPosition("y", bit)
+
+		for gateIdx := 0; gateIdx < len(origGates); gateIdx++ {
+			gate := origGates[gateIdx]
+			if gate.output[0] == 'z' {
+				continue
+			}
+			if gate.input1 == xN {
+				if gate.input2 != yN {
+					log.Fatal("Whoops!")
+				}
+
+				var newOutput string
+				switch gate.gateType {
+				case AND:
+					newOutput = NameForPosition("&", bit)
+				case OR:
+					newOutput = NameForPosition("|", bit)
+				case XOR:
+					newOutput = NameForPosition("^", bit)
+				}
+				subs[newOutput] = gate.output
+
+				for idx, g2 := range origGates {
+					if g2.input1 == gate.output {
+						g2.input1 = newOutput
+					} else if g2.input2 == gate.output {
+						g2.input2 = newOutput
+					} else if g2.output == gate.output {
+						g2.output = newOutput
+					}
+
+					origGates[idx] = g2
+				}
+			}
+		}
+	}
+
+	swappedNames := []string{}
+
+	for bit := 1; bit < bits; bit++ {
+		zN := NameForPosition("z", bit)
+
+		gi, gate := findGate(zN)
+
+		expectedXor := NameForPosition("^", bit)
+		if gate.gateType != XOR || (gate.input1 != expectedXor && gate.input2 != expectedXor) {
+			//	fmt.Println(gate)
+
+			found := false
+			// let's find the appropriate one
+			for g2i := 0; g2i < len(origGates); g2i++ {
+				g2 := origGates[g2i]
+				if g2.gateType == XOR && (g2.input1 == expectedXor || g2.input2 == expectedXor) {
+					//	fmt.Println("Maybe ", g2)
+					gate.output = g2.output
+					g2.output = zN
+					origGates[gi] = gate
+					origGates[g2i] = g2
+
+					swappedNames = append(swappedNames, zN)
+					swappedNames = append(swappedNames, gate.output)
+					found = true
+					break
+				}
+			}
+			if !found {
+				fmt.Println("Didn't find it for ", zN)
+			}
+		}
+	}
+
+	fmt.Println(swappedNames)
+
+	//var bits int
+	//for name, _ := range origValues {
+	//	if name[0] != 'x' {
+	//		continue
+	//	}
+	//	num, _ := strconv.Atoi(name[1:])
+	//	if num > bits {
+	//		bits = num
+	//	}
+	//}
+	//bits += 1
+
+	origValues = Set("x", 0, origValues, bits)
+	origValues = Set("y", 0, origValues, bits)
+
+	allSwappedNames, _ := recursiveTrySwaps(map[string]bool{}, origGates, 0, bits)
+	swappedNameSlice := make([]string, 0, len(allSwappedNames))
+	for k, _ := range allSwappedNames {
+		swappedNameSlice = append(swappedNameSlice, k)
+	}
+
+	slices.Sort(swappedNameSlice)
+	fmt.Println(strings.Join(swappedNameSlice, ","))
+
+	//fmt.Println(origGates)
 
 	//var z08i int
 	//var z08 Gate
@@ -441,29 +585,29 @@ func part2() {
 	//}
 	//printTree(z)
 
-	var bits int
-	for name, _ := range origValues {
-		if name[0] != 'x' {
-			continue
-		}
-		num, _ := strconv.Atoi(name[1:])
-		if num > bits {
-			bits = num
-		}
-	}
-	bits += 1
-
-	origValues = Set("x", 0, origValues, bits)
-	origValues = Set("y", 0, origValues, bits)
-
-	allSwappedNames, _ := recursiveTrySwaps(map[string]bool{}, map[string]bool{}, origGates, 0, bits)
-	swappedNameSlice := make([]string, 0, len(allSwappedNames))
-	for k, _ := range allSwappedNames {
-		swappedNameSlice = append(swappedNameSlice, k)
-	}
-
-	slices.Sort(swappedNameSlice)
-	fmt.Println(strings.Join(swappedNameSlice, ","))
+	//var bits int
+	//for name, _ := range origValues {
+	//	if name[0] != 'x' {
+	//		continue
+	//	}
+	//	num, _ := strconv.Atoi(name[1:])
+	//	if num > bits {
+	//		bits = num
+	//	}
+	//}
+	//bits += 1
+	//
+	//origValues = Set("x", 0, origValues, bits)
+	//origValues = Set("y", 0, origValues, bits)
+	//
+	//allSwappedNames, _ := recursiveTrySwaps(map[string]bool{}, origGates, 0, bits)
+	//swappedNameSlice := make([]string, 0, len(allSwappedNames))
+	//for k, _ := range allSwappedNames {
+	//	swappedNameSlice = append(swappedNameSlice, k)
+	//}
+	//
+	//slices.Sort(swappedNameSlice)
+	//fmt.Println(strings.Join(swappedNameSlice, ","))
 }
 
 func main() {
