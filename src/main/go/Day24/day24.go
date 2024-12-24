@@ -170,53 +170,6 @@ func numFor(prefix uint8, values map[string]bool) int {
 	return result
 }
 
-func popcount(v int) int {
-	var ct int = 0
-
-	for v != 0 {
-		ct += v & 1
-		v >>= 1
-	}
-	return ct
-}
-
-func CalcOneDepChain(name string, gateMap map[string]Gate) [][]string {
-	if name[0] == 'x' || name[0] == 'y' {
-		return [][]string{{name}}
-	} else {
-		inputGate := gateMap[name]
-		if inputGate.input1DepChains != nil && inputGate.input2DepChains != nil {
-			newChains := slices.Clone(inputGate.input1DepChains)
-			newChains = append(newChains, inputGate.input2DepChains...)
-
-			for idx, chain := range newChains {
-				newChains[idx] = append(chain, name)
-			}
-			return newChains
-		}
-	}
-	return nil
-}
-
-func CalculateDependencies(gateMap map[string]Gate) map[string]Gate {
-	changed := true
-	for changed {
-		changed = false
-		for name, gate := range gateMap {
-			if gate.input1DepChains == nil {
-				gate.input1DepChains = CalcOneDepChain(gate.input1, gateMap)
-				changed = changed || gate.input1DepChains != nil
-			}
-			if gate.input2DepChains == nil {
-				gate.input2DepChains = CalcOneDepChain(gate.input2, gateMap)
-				changed = changed || gate.input2DepChains != nil
-			}
-			gateMap[name] = gate
-		}
-	}
-	return gateMap
-}
-
 func NameForPosition(prefix string, position int) string {
 	str := strconv.Itoa(position)
 	if position < 10 {
