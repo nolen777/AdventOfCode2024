@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -254,11 +255,6 @@ func AppendDepIndices(name string, gates []Gate, indices map[int]bool) map[int]b
 	return indices
 }
 
-type IndexPair struct {
-	left  int
-	right int
-}
-
 func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]bool, origGates []Gate, startPosition int, bits int) (map[string]bool, bool) {
 	if len(allSwappedNames) > 8 {
 		return allSwappedNames, false
@@ -267,10 +263,9 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 		return allSwappedNames, true
 	}
 	for pos := 0; pos <= startPosition; pos++ {
+		possibleSwapIndices := map[int]bool{}
 		tryVals := func(gates []Gate, position int, x bool, y bool, expectZ0 bool, expectZ1 bool) bool {
 			vals := map[string]bool{}
-			vals = Set("x", 0, vals, bits)
-			vals = Set("y", 0, vals, bits)
 
 			vals[NameForPosition("x", position)] = x
 			vals[NameForPosition("y", position)] = y
@@ -289,6 +284,7 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 			return true
 		}
 
+		anyFailure := false
 		var failed bool
 		failed = !tryVals(slices.Clone(origGates), pos, false, false, false, false)
 		failed = failed || !tryVals(slices.Clone(origGates), pos, false, true, true, false)
@@ -296,44 +292,8 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 			if pos < startPosition {
 				return nil, false
 			}
-			possibleSwapIndices := map[int]bool{}
 			possibleSwapIndices = AppendDepIndices(NameForPosition("z", pos), origGates, possibleSwapIndices)
-
-			for swapIdx1, _ := range possibleSwapIndices {
-				if allSwappedNames[origGates[swapIdx1].output] {
-					continue
-				}
-				swap1 := origGates[swapIdx1]
-				for swapIdx2 := 0; swapIdx2 < len(origGates); swapIdx2++ {
-					if possibleSwapIndices[swapIdx2] {
-						continue
-					}
-					swap2 := origGates[swapIdx2]
-					if allSwappedNames[swap2.output] {
-						continue
-					}
-
-					if swap1.input1 == swap2.output || swap1.input2 == swap2.output {
-						continue
-					}
-					if swap2.input1 == swap1.output || swap2.input2 == swap1.output {
-						continue
-					}
-
-					swap1.output = origGates[swapIdx2].output
-					swap2.output = origGates[swapIdx1].output
-					swappedGates := slices.Clone(origGates)
-					swappedGates[swapIdx2] = swap1
-					swappedGates[swapIdx1] = swap2
-
-					swaps, ok := recursiveTrySwaps(previousDeps, allSwappedNames, swappedGates, startPosition+1, bits)
-					if ok {
-						return swaps, ok
-					}
-				}
-			}
-
-			return nil, false
+			anyFailure = true
 		}
 
 		failed = !tryVals(slices.Clone(origGates), pos, true, false, true, false)
@@ -342,20 +302,50 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 			if pos < startPosition {
 				return nil, false
 			}
-			possibleSwapIndices := map[int]bool{}
-			possibleSwapIndices = AppendDepIndices(NameForPosition("z", pos), origGates, possibleSwapIndices)
+			possibleSwapIndices = AppendDepIndices(NameForPosition("z", pos+1), origGates, possibleSwapIndices)
+			anyFailure = true
+		}
 
-			for swapIdx1, _ := range possibleSwapIndices {
+		if pos < startPosition {
+			continue
+		}
+
+		for k, _ := range previousDeps {
+			for swapIdx, _ := range possibleSwapIndices {
+				if origGates[swapIdx].output == k {
+					delete(possibleSwapIndices, swapIdx)
+				}
+			}
+		}
+
+		newDepIndices := map[int]bool{}
+
+		newDepIndices = AppendDepIndices(NameForPosition("z", pos), origGates, newDepIndices)
+		newDepIndices = AppendDepIndices(NameForPosition("z", pos+1), origGates, newDepIndices)
+
+		for idx, _ := range newDepIndices {
+			previousDeps[origGates[idx].output] = true
+		}
+		if !anyFailure {
+			return recursiveTrySwaps(previousDeps, allSwappedNames, origGates, pos+1, bits)
+		} else {
+			type IndexPair struct {
+				left  int
+				right int
+			}
+
+			swappedGateSets := []IndexPair{}
+			for swapIdx1 := 0; swapIdx1 < len(origGates)-1; swapIdx1++ {
 				if allSwappedNames[origGates[swapIdx1].output] {
 					continue
 				}
 				swap1 := origGates[swapIdx1]
-				for swapIdx2 := 0; swapIdx2 < len(origGates); swapIdx2++ {
-					if possibleSwapIndices[swapIdx2] {
+				for swapIdx2 := range possibleSwapIndices {
+					swap2 := origGates[swapIdx2]
+					if allSwappedNames[origGates[swapIdx2].output] {
 						continue
 					}
-					swap2 := origGates[swapIdx2]
-					if allSwappedNames[swap2.output] {
+					if swapIdx1 == swapIdx2 {
 						continue
 					}
 
@@ -372,18 +362,45 @@ func recursiveTrySwaps(previousDeps map[string]bool, allSwappedNames map[string]
 					swappedGates[swapIdx2] = swap1
 					swappedGates[swapIdx1] = swap2
 
-					swaps, ok := recursiveTrySwaps(previousDeps, allSwappedNames, swappedGates, startPosition+1, bits)
-					if ok {
-						return swaps, ok
+					if !tryVals(swappedGates, pos, false, false, false, false) {
+						continue
 					}
+					if !tryVals(swappedGates, pos, false, true, true, false) {
+						continue
+					}
+					if !tryVals(swappedGates, pos, true, false, true, false) {
+						continue
+					}
+					if !tryVals(swappedGates, pos, true, true, false, true) {
+						continue
+					}
+
+					swappedGateSets = append(swappedGateSets, IndexPair{swapIdx1, swapIdx2})
 				}
 			}
 
-			return nil, false
+			for _, indexPair := range swappedGateSets {
+				swap1 := origGates[indexPair.left]
+				swap2 := origGates[indexPair.right]
+				swap1.output = origGates[indexPair.right].output
+				swap2.output = origGates[indexPair.left].output
+				swappedGates := slices.Clone(origGates)
+				swappedGates[indexPair.right] = swap1
+				swappedGates[indexPair.left] = swap2
+				//fmt.Println("Possible swap! ", swap1.output, swap2.output)
+				swappedNamesClone := maps.Clone(allSwappedNames)
+				swappedNamesClone[swap1.output] = true
+				swappedNamesClone[swap2.output] = true
+
+				swaps, ok := recursiveTrySwaps(previousDeps, swappedNamesClone, swappedGates, pos+1, bits)
+				if ok {
+					return swaps, true
+				}
+			}
 		}
 	}
 
-	return recursiveTrySwaps(previousDeps, allSwappedNames, origGates, startPosition+1, bits)
+	return nil, false
 }
 
 type GateTree struct {
@@ -482,6 +499,9 @@ func part2() {
 		}
 	}
 	bits += 1
+
+	origValues = Set("x", 0, origValues, bits)
+	origValues = Set("y", 0, origValues, bits)
 
 	allSwappedNames, _ := recursiveTrySwaps(map[string]bool{}, map[string]bool{}, origGates, 0, bits)
 	swappedNameSlice := make([]string, 0, len(allSwappedNames))
