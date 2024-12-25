@@ -7,7 +7,9 @@ import (
 	"os"
 )
 
-func GenerateOne(blockWithoutMetadata []string) []int {
+type Config []int
+
+func GenerateOne(blockWithoutMetadata []string) Config {
 	config := make([]int, len(blockWithoutMetadata[0]), len(blockWithoutMetadata[0]))
 
 	for _, line := range blockWithoutMetadata {
@@ -21,9 +23,9 @@ func GenerateOne(blockWithoutMetadata []string) []int {
 }
 
 // returns (locks, keys)
-func GenerateConfigs(blocks [][]string) ([][]int, [][]int) {
-	locks := [][]int{}
-	keys := [][]int{}
+func GenerateConfigs(blocks [][]string) ([]Config, []Config) {
+	locks := []Config{}
+	keys := []Config{}
 
 	for _, block := range blocks {
 		if block[0][0] == '#' {
@@ -67,11 +69,49 @@ func parseSchematicBlocks(fileName string) [][]string {
 	return blocks
 }
 
+func GenerateUnderArray(configs []Config) [][]Config {
+	configsUnder := make([][]Config, 5, 5)
+
+	for _, config := range configs {
+		for idx, ct := range config {
+			for i := 0; i < ct; i++ {
+				configsUnder[idx][i] = config
+			}
+		}
+	}
+
+	return configsUnder
+}
+
+func CountFittingPairs(locks []Config, keys []Config) int {
+	//	locksUnder := GenerateUnderArray(locks)
+	//	keysUnder := GenerateUnderArray(keys)
+
+	count := 0
+	for _, lock := range locks {
+	keyLabel:
+		for _, key := range keys {
+			fmt.Print(lock, key)
+			for i := 0; i < 5; i++ {
+				if key[i]+lock[i] > 5 {
+					fmt.Println("overlap in column ", i+1)
+					continue keyLabel
+				}
+			}
+			fmt.Println("fit")
+			count++
+		}
+	}
+	return count
+}
+
 func part1() {
-	blocks := parseSchematicBlocks("resources/Day25/sample.txt")
+	blocks := parseSchematicBlocks("resources/Day25/input.txt")
 	locks, keys := GenerateConfigs(blocks)
-	fmt.Println(locks)
-	fmt.Println(keys)
+
+	fmt.Println(CountFittingPairs(locks, keys))
+	//fmt.Println(locks)
+	//fmt.Println(keys)
 }
 
 func part2() {
