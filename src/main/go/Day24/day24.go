@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"regexp"
-	"slices"
 	"strconv"
 )
 
@@ -23,8 +23,7 @@ type Gate struct {
 	gateType GateType
 	output   string
 
-	input1DepChains [][]string
-	input2DepChains [][]string
+	inputDeps map[string]bool
 }
 
 func parseGates(fileName string) (map[string]bool, []Gate) {
@@ -88,19 +87,19 @@ func parseGates(fileName string) (map[string]bool, []Gate) {
 	return initialValues, gates
 }
 
-func iterateGates(values map[string]bool, gates []Gate) ([]Gate, bool) {
-	remainingGates := []Gate{}
+func iterateGates(values map[string]bool, gates map[string]Gate) (map[string]Gate, bool) {
+	remainingGates := map[string]Gate{}
 
 	changes := false
 	for _, gate := range gates {
 		i1, ok := values[gate.input1]
 		if !ok {
-			remainingGates = append(remainingGates, gate)
+			remainingGates[gate.output] = gate
 			continue
 		}
 		i2, ok := values[gate.input2]
 		if !ok {
-			remainingGates = append(remainingGates, gate)
+			remainingGates[gate.output] = gate
 			continue
 		}
 		var o bool
@@ -123,10 +122,12 @@ func part1() {
 	fmt.Println(values)
 	fmt.Println(gates)
 
+	gateMap := FillDeps(gates)
+
 	cont := true
 	for cont {
 		fmt.Println(len(gates), "remaining")
-		gates, cont = iterateGates(values, gates)
+		gateMap, cont = iterateGates(values, gateMap)
 	}
 
 	//var xNum, yNum, zNum uint64
@@ -191,25 +192,7 @@ func Set(prefix string, num int, values map[string]bool, bits int) map[string]bo
 	return values
 }
 
-func AppendDepIndices(name string, gates []Gate, indices map[int]bool) map[int]bool {
-	if name[0] != 'x' && name[0] != 'y' {
-		for idx, gate := range gates {
-			if indices[idx] {
-				continue
-			}
-			if gate.output != name {
-				continue
-			}
-			indices[idx] = true
-			indices = AppendDepIndices(gate.input1, gates, indices)
-			indices = AppendDepIndices(gate.input2, gates, indices)
-			break
-		}
-	}
-	return indices
-}
-
-func TryValues(gates []Gate, position int, x bool, y bool, expectZ0 bool, expectZ1 bool) bool {
+func TryValues(gates map[string]Gate, position int, x bool, y bool, expectZ0 bool, expectZ1 bool) bool {
 	vals := map[string]bool{}
 	vals = Set("x", 0, vals, 64)
 	vals = Set("y", 0, vals, 64)
@@ -231,50 +214,146 @@ func TryValues(gates []Gate, position int, x bool, y bool, expectZ0 bool, expect
 	return true
 }
 
-func validate(origGates []Gate, bits int) bool {
-	for pos := 0; pos <= bits; pos++ {
-		if !TryValues(slices.Clone(origGates), pos, false, true, true, false) || !TryValues(slices.Clone(origGates), pos, false, false, false, false) {
-			return false
-		}
+func oneValidate(gates map[string]Gate, pos int) bool {
+	if !TryValues(maps.Clone(gates), pos, false, true, true, false) || !TryValues(maps.Clone(gates), pos, false, false, false, false) {
+		return false
+	}
 
-		if !TryValues(slices.Clone(origGates), pos, true, false, true, false) || !TryValues(slices.Clone(origGates), pos, true, true, false, true) {
-			return false
+	if !TryValues(maps.Clone(gates), pos, true, false, true, false) || !TryValues(maps.Clone(gates), pos, true, true, false, true) {
+		return false
+	}
+	return true
+}
+
+func validate(gates map[string]Gate, bits int) (int, bool) {
+	for pos := 0; pos <= bits; pos++ {
+		if !oneValidate(gates, pos) {
+			return pos, false
 		}
 		//	fmt.Println("Through position ", pos)
 	}
 
-	return true
+	return 0, true
 }
 
-type GateTree struct {
-	output string
+func recursiveCheck(gates map[string]Gate, bits int, prev map[string]bool, recurseAfterPos int) (map[string]bool, bool) {
+	if len(prev) > 8 {
+		return map[string]bool{}, false
+	}
 
-	gateType GateType
+	pos, ok := validate(gates, bits)
+	if ok {
+		return prev, true
+	}
 
-	leftName string
-	left     *GateTree
+	if pos < recurseAfterPos {
+		return prev, false
+	}
 
-	rightName string
-	right     *GateTree
+	zN := NameForPosition("z", pos)
+	zNP := NameForPosition("z", pos+1)
+	if prev[zN] {
+		return prev, false
+	}
+	deps := map[string]bool{}
+	for zP, _ := range gates[zN].inputDeps {
+		_, ok := gates[zP]
+		if ok {
+			deps[zP] = true
+		}
+	}
+	for zPD, _ := range gates[zNP].inputDeps {
+		_, ok := gates[zPD]
+		if ok {
+			deps[zPD] = true
+		}
+	}
+	deps[zN] = true
+	deps[zNP] = true
+	fmt.Println("Checking deps ", deps)
+	for depName, _ := range deps {
+		if depName[0] == 'x' {
+			continue
+		}
+		if depName[0] == 'y' {
+			continue
+		}
+		if depName != zN && depName[0] == 'z' {
+			continue
+		}
+	swapOuter:
+		for swapName, swapper := range gates {
+			if swapName == depName {
+				continue
+			}
+			if prev[swapper.output] {
+				continue
+			}
+			for h := pos + 1; h <= bits; h++ {
+				if swapper.inputDeps[NameForPosition("x", h)] {
+					continue swapOuter
+				}
+				if swapper.inputDeps[NameForPosition("y", h)] {
+					continue swapOuter
+				}
+			}
+			dep := gates[depName]
+
+			newSwapper := swapper
+			newDep := dep
+			newDep.output = swapName
+			newSwapper.output = depName
+			gates[swapName] = newDep
+			gates[depName] = newSwapper
+
+			if oneValidate(gates, pos) {
+				newPrev := maps.Clone(prev)
+				newPrev[newSwapper.output] = true
+				newPrev[newDep.output] = true
+
+				fmt.Println("Possible success with ", newDep.output, newSwapper.output)
+				swaps, ok := recursiveCheck(gates, bits, newPrev, pos+1)
+				if ok {
+					return swaps, ok
+				}
+			}
+
+			gates[swapName] = swapper
+			gates[depName] = dep
+		}
+	}
+
+	fmt.Println(zN, zNP)
+	return prev, false
 }
 
-func FillTrees(trees map[string]*GateTree) map[string]*GateTree {
-	allNames := make([]string, 0, len(trees))
-	for name, _ := range trees {
-		allNames = append(allNames, name)
+func FillDeps(gates []Gate) map[string]Gate {
+	gateMap := make(map[string]Gate, len(gates))
+
+	for _, gate := range gates {
+		gate.inputDeps = map[string]bool{}
+		gate.inputDeps[gate.input1] = true
+		gate.inputDeps[gate.input2] = true
+		gateMap[gate.output] = gate
 	}
 
-	for _, name := range allNames {
-		root := trees[name]
-		if root.left == nil {
-			root.left = trees[root.leftName]
-		}
-		if root.right == nil {
-			root.right = trees[root.rightName]
+	changed := true
+	for changed {
+		changed = false
+		for k, v := range gateMap {
+			for dep, _ := range v.inputDeps {
+				depGate := gateMap[dep]
+				for depDep, _ := range depGate.inputDeps {
+					if !v.inputDeps[depDep] {
+						changed = true
+						v.inputDeps[depDep] = true
+					}
+				}
+				gateMap[k] = v
+			}
 		}
 	}
-
-	return trees
+	return gateMap
 }
 
 func part2() {
@@ -293,228 +372,11 @@ func part2() {
 	}
 	bits += 1
 
-	fmt.Println("done")
-	_ = origGates
+	gateMap := FillDeps(origGates)
+	//fmt.Println(gateMap)
 
-	//findGate := func(name string) (int, Gate) {
-	//	for idx, gate := range origGates {
-	//		if gate.output == name {
-	//			return idx, gate
-	//		}
-	//	}
-	//	log.Fatal("Not found")
-	//	return -1, Gate{}
-	//}
+	fmt.Println(recursiveCheck(gateMap, bits, map[string]bool{}, 0))
 
-	//
-	//subs := map[string]string{}
-	//
-	//for bit := 0; bit < bits; bit++ {
-	//	xN := NameForPosition("x", bit)
-	//	yN := NameForPosition("y", bit)
-	//
-	//	for gateIdx := 0; gateIdx < len(origGates); gateIdx++ {
-	//		gate := origGates[gateIdx]
-	//		if gate.output[0] == 'z' {
-	//			continue
-	//		}
-	//		if gate.input1 == xN {
-	//			if gate.input2 != yN {
-	//				log.Fatal("Whoops!")
-	//			}
-	//
-	//			var newOutput string
-	//			switch gate.gateType {
-	//			case AND:
-	//				newOutput = NameForPosition("&", bit)
-	//			case OR:
-	//				newOutput = NameForPosition("|", bit)
-	//			case XOR:
-	//				newOutput = NameForPosition("^", bit)
-	//			}
-	//			subs[newOutput] = gate.output
-	//
-	//			for idx, g2 := range origGates {
-	//				if g2.input1 == gate.output {
-	//					g2.input1 = newOutput
-	//				} else if g2.input2 == gate.output {
-	//					g2.input2 = newOutput
-	//				} else if g2.output == gate.output {
-	//					g2.output = newOutput
-	//				}
-	//
-	//				origGates[idx] = g2
-	//			}
-	//		}
-	//	}
-	//}
-	//
-	//swappedNames := []string{}
-	//
-	//for bit := 1; bit < bits; bit++ {
-	//	zN := NameForPosition("z", bit)
-	//
-	//	gi, gate := findGate(zN)
-	//
-	//	expectedXor := NameForPosition("^", bit)
-	//	if gate.gateType != XOR || (gate.input1 != expectedXor && gate.input2 != expectedXor) {
-	//		//	fmt.Println(gate)
-	//
-	//		found := false
-	//		// let's find the appropriate one
-	//		for g2i := 0; g2i < len(origGates); g2i++ {
-	//			g2 := origGates[g2i]
-	//			if g2.gateType == XOR && (g2.input1 == expectedXor || g2.input2 == expectedXor) {
-	//				//	fmt.Println("Maybe ", g2)
-	//				gate.output = g2.output
-	//				g2.output = zN
-	//				origGates[gi] = gate
-	//				origGates[g2i] = g2
-	//
-	//				swappedNames = append(swappedNames, zN)
-	//				swappedNames = append(swappedNames, gate.output)
-	//				found = true
-	//				break
-	//			}
-	//		}
-	//		if !found {
-	//			fmt.Println("Didn't find it for ", zN)
-	//		}
-	//	}
-	//}
-	//
-	//fmt.Println(swappedNames)
-	//
-	//origValues = Set("x", 0, origValues, bits)
-	//origValues = Set("y", 0, origValues, bits)
-	//
-	//var recurse func(idx int) bool
-	//recurse = func(idx int) bool {
-	//	fmt.Println(idx)
-	//	second := origGates[idx]
-	//	for i := 0; i < len(origGates); i++ {
-	//		if i == idx {
-	//			continue
-	//		}
-	//		first := origGates[i]
-	//
-	//		newFirst := first
-	//		newSecond := second
-	//
-	//		newFirst.output = second.output
-	//		newSecond.output = first.output
-	//
-	//		origGates[i] = newFirst
-	//		origGates[idx] = newSecond
-	//
-	//		if recursiveTrySwaps(map[string]bool{}, origGates, bits) {
-	//			fmt.Println("Got it!", first.output, second.output)
-	//			return true
-	//			break
-	//		}
-	//
-	//		origGates[i] = first
-	//		origGates[idx] = second
-	//	}
-	//
-	//	if second.input1[0] != 'x' && second.input1[0] != 'y' {
-	//		li, _ := findGate(second.input1)
-	//		if recurse(li) {
-	//			return true
-	//		}
-	//	}
-	//	if second.input2[0] != 'x' && second.input2[0] != 'y' {
-	//		ri, _ := findGate(second.input2)
-	//		if recurse(ri) {
-	//			return true
-	//		}
-	//	}
-	//	return false
-	//}
-	//
-	//idx, z14 := findGate("z14")
-	//success := recurse(idx)
-	//
-	//fmt.Println(success, z14)
-	//
-	//slices.Sort(swappedNames)
-	//fmt.Println(strings.Join(swappedNames, ","))
-
-	//fmt.Println(origGates)
-
-	//var z08i int
-	//var z08 Gate
-	//var qtwi int
-	//var qtw Gate
-	//for idx, gate := range origGates {
-	//	if gate.output == "z08" {
-	//		z08i = idx
-	//		z08 = gate
-	//	}
-	//	if gate.output == "qtw" {
-	//		qtwi = idx
-	//		qtw = gate
-	//	}
-	//}
-	//
-	//z08.output = "qtw"
-	//qtw.output = "z08"
-	//origGates[z08i] = qtw
-	//origGates[qtwi] = z08
-
-	//trees := make(map[string]*GateTree, len(origGates))
-	//for len(origGates) > 0 {
-	//	gate := origGates[len(origGates)-1]
-	//	if gate.input1[0] == 'z' || gate.input2[0] == 'z' {
-	//		log.Fatal("whelp")
-	//	}
-	//	tree := GateTree{output: gate.output, gateType: gate.gateType, leftName: gate.input1, left: nil, rightName: gate.input2, right: nil}
-	//	trees[gate.output] = &tree
-	//	origGates = origGates[:len(origGates)-1]
-	//}
-	//
-	//FillTrees(trees)
-	//
-	//z := trees["z08"]
-	//var printTree func(tree *GateTree)
-	//printTree = func(tree *GateTree) {
-	//	fmt.Println(tree.output)
-	//	if tree.leftName[0] == 'x' || tree.leftName[0] == 'y' {
-	//		fmt.Println(tree.leftName)
-	//	} else {
-	//		printTree(tree.left)
-	//	}
-	//	if tree.rightName[0] == 'x' || tree.rightName[0] == 'y' {
-	//		fmt.Println(tree.rightName)
-	//	} else {
-	//		printTree(tree.right)
-	//	}
-	//}
-	//printTree(z)
-
-	//var bits int
-	//for name, _ := range origValues {
-	//	if name[0] != 'x' {
-	//		continue
-	//	}
-	//	num, _ := strconv.Atoi(name[1:])
-	//	if num > bits {
-	//		bits = num
-	//	}
-	//}
-	//bits += 1
-	//
-	//origValues = Set("x", 0, origValues, bits)
-	//origValues = Set("y", 0, origValues, bits)
-	//
-	//allSwappedNames, _ := recursiveTrySwaps(map[string]bool{}, origGates, 0, bits)
-	//swappedNameSlice := make([]string, 0, len(allSwappedNames))
-	//for k, _ := range allSwappedNames {
-	//	swappedNameSlice = append(swappedNameSlice, k)
-	//}
-	//
-	//slices.Sort(swappedNameSlice)
-	//fmt.Println(strings.Join(swappedNameSlice, ","))
 }
 
 func main() {
