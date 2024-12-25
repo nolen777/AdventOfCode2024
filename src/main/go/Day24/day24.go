@@ -356,6 +356,53 @@ func FillDeps(gates []Gate) map[string]Gate {
 	return gateMap
 }
 
+func InsertHalfAdder(left string, right string, sumName string, carryName string, gates map[string]Gate) map[string]Gate {
+	gates[sumName] = Gate{
+		input1:   left,
+		input2:   right,
+		gateType: XOR,
+		output:   sumName,
+	}
+
+	gates[carryName] = Gate{
+		input1:   left,
+		input2:   right,
+		gateType: AND,
+		output:   carryName,
+	}
+
+	return gates
+}
+
+func expectedGates(bits int) map[string]Gate {
+	gates := map[string]Gate{
+		"z00":    {input1: "x00", input2: "y00", gateType: XOR, output: "z00"},
+		"_car00": {input1: "x00", input2: "y00", gateType: AND, output: "_car00"},
+	}
+
+	for b := 1; b < bits+1; b++ {
+		gates = InsertHalfAdder(
+			NameForPosition("x", b),
+			NameForPosition("y", b),
+			NameForPosition("_hSum", b),
+			NameForPosition("_hCar", b), gates)
+		gates = InsertHalfAdder(
+			NameForPosition("_hSum", b),
+			NameForPosition("_car", b-1),
+			NameForPosition("z", b),
+			NameForPosition("_h2Car", b), gates)
+
+		gates[NameForPosition("_car", b)] = Gate{
+			input1:   NameForPosition("_hCar", b),
+			input2:   NameForPosition("_h2Car", b),
+			gateType: OR,
+			output:   NameForPosition("_car", b),
+		}
+	}
+
+	return gates
+}
+
 func part2() {
 	origValues, origGates := parseGates("resources/Day24/input.txt")
 	fmt.Println(origValues)
@@ -372,10 +419,29 @@ func part2() {
 	}
 	bits += 1
 
-	gateMap := FillDeps(origGates)
-	//fmt.Println(gateMap)
+	expected := expectedGates(bits)
+	fmt.Println(expected)
 
-	fmt.Println(recursiveCheck(gateMap, bits, map[string]bool{}, 0))
+	expectedValues := map[string]bool{}
+	x := 393842731
+	y := 13894701
+	Set("x", x, expectedValues, bits)
+	Set("y", y, expectedValues, bits)
+
+	cont := true
+	remainingGates := expected
+	for cont {
+		remainingGates, cont = iterateGates(expectedValues, remainingGates)
+	}
+	result := numFor('z', expectedValues)
+	fmt.Printf("Got %d, expected %d, diff %d\n", result, x+y, result-x-y)
+
+	_ = origGates
+
+	//gateMap := FillDeps(origGates)
+	////fmt.Println(gateMap)
+	//
+	//fmt.Println(recursiveCheck(gateMap, bits, map[string]bool{}, 0))
 
 }
 
