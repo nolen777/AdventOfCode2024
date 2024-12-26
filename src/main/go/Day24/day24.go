@@ -130,28 +130,6 @@ func part1() {
 		gateMap, cont = iterateGates(values, gateMap)
 	}
 
-	//var xNum, yNum, zNum uint64
-	//for k, v := range values {
-	//	if k[0] != 'z' && k[0] != 'x' && k[0] != 'y' {
-	//		continue
-	//	}
-	//	val, err := strconv.Atoi(k[1:])
-	//	if err != nil {
-	//		log.Fatal("Invalid identifier ", k)
-	//	}
-	//	if v {
-	//		if k[0] == 'x' {
-	//			xNum = xNum | (1 << val)
-	//		}
-	//		if k[0] == 'y' {
-	//			yNum = yNum | (1 << val)
-	//		}
-	//		if k[0] == 'z' {
-	//			zNum = zNum | (1 << val)
-	//		}
-	//	}
-	//}
-
 	fmt.Println("Result: ", numFor('z', values))
 }
 
@@ -374,11 +352,47 @@ func InsertHalfAdder(left string, right string, sumName string, carryName string
 	return gates
 }
 
-func expectedGates(bits int) map[string]Gate {
-	gates := map[string]Gate{
-		"z00":    {input1: "x00", input2: "y00", gateType: XOR, output: "z00"},
-		"_car00": {input1: "x00", input2: "y00", gateType: AND, output: "_car00"},
+func IsNormalizedMatch(expected Gate, got Gate, nameToNorm map[string]string) bool {
+	if expected.gateType != got.gateType {
+		return false
 	}
+
+	n1, ok := nameToNorm[got.input1]
+	if !ok {
+		return false
+	}
+	n2, ok := nameToNorm[got.input2]
+	if !ok {
+		return false
+	}
+	if n1 != expected.input1 && n1 != expected.input2 {
+		return false
+	}
+	if n2 != expected.input2 && n2 != expected.input1 {
+		return false
+	}
+	return true
+}
+
+func FindNormalizedMatch(expected Gate, origGateMap map[string]Gate, nameToNorm map[string]string) (Gate, bool) {
+	for _, origGate := range origGateMap {
+		if IsNormalizedMatch(expected, origGate, nameToNorm) {
+			return origGate, true
+		}
+	}
+	return Gate{}, false
+}
+
+func expectedGates(bits int, origGateMap map[string]Gate) map[string]Gate {
+	nameToNorm := make(map[string]string, len(origGateMap))
+	for b := 0; b < bits; b++ {
+		nameToNorm[NameForPosition("x", b)] = NameForPosition("x", b)
+		nameToNorm[NameForPosition("y", b)] = NameForPosition("y", b)
+	}
+
+	gates := make(map[string]Gate, bits*5)
+
+	gates = InsertHalfAdder("x00", "y00", "z00", "_car00", gates)
 
 	for b := 1; b < bits+1; b++ {
 		gates = InsertHalfAdder(
@@ -386,6 +400,7 @@ func expectedGates(bits int) map[string]Gate {
 			NameForPosition("y", b),
 			NameForPosition("_hSum", b),
 			NameForPosition("_hCar", b), gates)
+
 		gates = InsertHalfAdder(
 			NameForPosition("_hSum", b),
 			NameForPosition("_car", b-1),
@@ -404,22 +419,24 @@ func expectedGates(bits int) map[string]Gate {
 }
 
 func part2() {
-	origValues, origGates := parseGates("resources/Day24/input.txt")
+	origValues, origGates := parseGates("resources/Day24/modifiedFile.txt")
 	fmt.Println(origValues)
 
 	var bits int
-	for name, _ := range origValues {
-		if name[0] != 'x' {
-			continue
-		}
-		num, _ := strconv.Atoi(name[1:])
-		if num > bits {
-			bits = num
+	gateMap := make(map[string]Gate, len(origGates))
+	for _, gate := range origGates {
+		gateName := gate.output
+		gateMap[gateName] = gate
+
+		if gateName[0] == 'z' {
+			num, _ := strconv.Atoi(gateName[1:])
+			if num > bits {
+				bits = num
+			}
 		}
 	}
-	bits += 1
 
-	expected := expectedGates(bits)
+	expected := expectedGates(bits, gateMap)
 	fmt.Println(expected)
 
 	expectedValues := map[string]bool{}
@@ -434,9 +451,138 @@ func part2() {
 		remainingGates, cont = iterateGates(expectedValues, remainingGates)
 	}
 	result := numFor('z', expectedValues)
+
 	fmt.Printf("Got %d, expected %d, diff %d\n", result, x+y, result-x-y)
 
-	_ = origGates
+	nameToNorm := make(map[string]string, len(origValues))
+	normToName := make(map[string]string, len(origValues))
+	for b := 0; b < bits; b++ {
+		nameToNorm[NameForPosition("x", b)] = NameForPosition("x", b)
+		nameToNorm[NameForPosition("y", b)] = NameForPosition("y", b)
+		//	nameToNorm[NameForPosition("z", b)] = NameForPosition("z", b)
+
+		normToName[NameForPosition("x", b)] = NameForPosition("x", b)
+		normToName[NameForPosition("y", b)] = NameForPosition("y", b)
+		//	normToName[NameForPosition("z", b)] = NameForPosition("z", b)
+	}
+
+	changes := true
+	for changes {
+		changes = false
+		for givenName, givenGate := range gateMap {
+			_, exists := nameToNorm[givenName]
+			if exists {
+				continue
+			}
+
+			normIn1, ok := nameToNorm[givenGate.input1]
+			if !ok {
+				//	fmt.Printf("Don't have %s yet\n", givenGate.input1)
+				continue
+			}
+			normIn2, ok := nameToNorm[givenGate.input2]
+			if !ok {
+				//	fmt.Printf("Don't have %s yet\n", givenGate.input2)
+				continue
+			}
+
+			for normName, normGate := range expected {
+				if normGate.gateType != givenGate.gateType {
+					continue
+				}
+				if (normIn1 == normGate.input1 && normIn2 == normGate.input2) ||
+					(normIn2 == normGate.input1 && normIn1 == normGate.input2) {
+					changes = true
+					nameToNorm[givenName] = normName
+					normToName[normName] = givenName
+					break
+				}
+			}
+		}
+	}
+
+	identities := []string{"_hSum", "_hCar", "_h2Car", "_car", "z"}
+
+	changes = true
+	for changes {
+		changes = false
+
+		for b := 1; b < bits; b++ {
+			for _, id := range identities {
+				idName := NameForPosition(id, b)
+
+				expectedGate := expected[idName]
+				gotGate, ok := gateMap[normToName[idName]]
+
+				isNormalizedMatch := func(expected Gate, got Gate) bool {
+					if expected.gateType != got.gateType {
+						return false
+					}
+
+					n1, ok := nameToNorm[got.input1]
+					if !ok {
+						return false
+					}
+					n2, ok := nameToNorm[got.input2]
+					if !ok {
+						return false
+					}
+					if n1 != expected.input1 && n1 != expected.input2 {
+						return false
+					}
+					if n2 != expected.input2 && n2 != expected.input1 {
+						return false
+					}
+					return true
+				}
+
+				if !ok || !isNormalizedMatch(expectedGate, gotGate) {
+					fmt.Printf("Mismatch at %s!\n", idName)
+
+					var shouldBe Gate
+					found := false
+					for realGateName, realGate := range gateMap {
+						if realGate.gateType != expectedGate.gateType {
+							continue
+						}
+						normIn1 := nameToNorm[realGate.input1]
+						normIn2 := nameToNorm[realGate.input2]
+
+						if normIn1 != expectedGate.input1 && normIn1 != expectedGate.input2 {
+							continue
+						}
+						if normIn2 != expectedGate.input1 && normIn2 != expectedGate.input2 {
+							continue
+						}
+						fmt.Printf("Found a match for %s\n", realGateName)
+						found = true
+					}
+					if !found {
+						fmt.Println("Not good")
+					}
+
+					if !ok {
+						fmt.Printf("Couldn't find a match for %s\n", idName)
+						break
+					}
+					fmt.Printf("%s maybe?\n", shouldBe)
+
+					fmt.Printf("Swapping %s and %s\n", shouldBe.output, gotGate.output)
+
+					shouldBe.output = gotGate.output
+					gateMap[shouldBe.output] = shouldBe
+					gotGate.output = normToName[idName]
+					gateMap[gotGate.output] = gotGate
+
+					normToName[expectedGate.output] = shouldBe.output
+					nameToNorm[shouldBe.output] = expectedGate.output
+
+					changes = true
+					break
+				}
+			}
+		}
+	}
 
 	//gateMap := FillDeps(origGates)
 	////fmt.Println(gateMap)
